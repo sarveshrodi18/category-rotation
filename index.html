@@ -1,0 +1,1654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Category Rotation Desk</title>
+<script>
+/* apply saved theme before paint (falls back to the system setting) */
+try{ const t = localStorage.getItem('crd_theme'); if(t==='light'||t==='dark') document.documentElement.dataset.theme = t; }catch(e){}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ======================================================================
+   Design tokens. Light theme is the base; dark overrides follow.
+   Stage colours (leading / emerging / weakening / lagging) are the one
+   colour system used everywhere: pills, map, verdicts, bars.
+   ====================================================================== */
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --panel-alt:#f6f8fb; --sunk:#eaeef4;
+  --border:#dde2ea; --border-soft:#e9edf3;
+  --text:#121722; --text-muted:#566070; --text-faint:#8b93a3;
+  --accent:#3347d1; --accent-dim:#e3e7fb; --accent-ink:#ffffff;
+  --pos:#0f8a55; --neg:#cf3338; --gold:#b26b00; --violet:#7a52d1; --teal:#0a8aa3;
+  --lead:#0f8a55; --emerg:#0a8aa3; --weak:#c27a00; --lag:#cf3338;
+  --shadow:0 1px 2px rgba(18,23,34,.05), 0 4px 16px rgba(18,23,34,.04);
+  --sans:'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono:'Geist Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  --body:var(--sans); --disp:var(--sans);
+  --r-lg:12px; --r-md:8px; --r-sm:6px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1117; --panel:#161a22; --panel-alt:#1b2029; --sunk:#12161d;
+    --border:#283040; --border-soft:#202734;
+    --text:#e8ebf1; --text-muted:#a1a9b8; --text-faint:#6b7486;
+    --accent:#8796ff; --accent-dim:#262d4d; --accent-ink:#0e1117;
+    --pos:#3ccf8e; --neg:#ff6b6e; --gold:#f0b54a; --violet:#b39cff; --teal:#4cc9e0;
+    --lead:#3ccf8e; --emerg:#4cc9e0; --weak:#f0b54a; --lag:#ff6b6e;
+    --shadow:none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1117; --panel:#161a22; --panel-alt:#1b2029; --sunk:#12161d;
+  --border:#283040; --border-soft:#202734;
+  --text:#e8ebf1; --text-muted:#a1a9b8; --text-faint:#6b7486;
+  --accent:#8796ff; --accent-dim:#262d4d; --accent-ink:#0e1117;
+  --pos:#3ccf8e; --neg:#ff6b6e; --gold:#f0b54a; --violet:#b39cff; --teal:#4cc9e0;
+  --lead:#3ccf8e; --emerg:#4cc9e0; --weak:#f0b54a; --lag:#ff6b6e;
+  --shadow:none; color-scheme: dark;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 1;}
+::selection{background:var(--accent-dim);}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;border:2px solid transparent;background-clip:padding-box;}
+::-webkit-scrollbar-track{background:transparent;}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em;text-wrap:balance;}
+.num{font-variant-numeric:tabular-nums;}
+.pos{color:var(--pos);} .neg{color:var(--neg);} .muted{color:var(--text-muted);} .faint{color:var(--text-faint);}
+button{font-family:inherit;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+[hidden]{display:none !important;}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important;animation:none !important;} }
+
+/* ---------------------------------------------------------------- shell */
+.app-shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh;}
+.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:18px;padding:18px 14px;border-right:1px solid var(--border);background:var(--panel);overflow-y:auto;}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 6px 0;}
+.brand svg{flex:none;}
+.brand h1{font-size:15px;line-height:1.2;}
+.brand span{display:block;font-size:12px;color:var(--text-muted);margin-top:2px;}
+.nav{display:flex;flex-direction:column;gap:2px;}
+.nav-label{font-size:12px;color:var(--text-faint);padding:0 8px;margin:4px 0 4px;}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;color:var(--text-muted);font-size:13.5px;font-weight:500;padding:8px 10px;border-radius:var(--r-md);cursor:pointer;}
+.nav button svg{flex:none;opacity:.8;}
+.nav button:hover{background:var(--panel-alt);color:var(--text);}
+.nav button.active{background:var(--accent-dim);color:var(--accent);}
+.nav button.active svg{opacity:1;}
+.side-foot{margin-top:auto;font-size:11.5px;color:var(--text-faint);line-height:1.5;padding:0 6px;}
+
+.main{min-width:0;display:flex;flex-direction:column;}
+.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 24px;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
+.top-meta{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;font-size:12.5px;color:var(--text-muted);}
+.top-meta .m{display:flex;align-items:baseline;gap:6px;}
+.top-meta .m b{font-weight:600;color:var(--text);}
+.top-meta .dot{width:7px;height:7px;border-radius:50%;background:var(--pos);display:inline-block;align-self:center;}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.content{padding:20px 24px 28px;display:flex;flex-direction:column;gap:16px;}
+.view-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.view-head h2{font-size:22px;}
+.view-head p{margin:4px 0 0;color:var(--text-muted);font-size:13.5px;max-width:78ch;}
+
+@media (max-width:960px){
+  .app-shell{grid-template-columns:1fr;}
+  .side{position:static;height:auto;flex-direction:column;border-right:none;border-bottom:1px solid var(--border);padding:12px 16px;gap:10px;}
+  .nav{flex-direction:row;overflow-x:auto;gap:4px;}
+  .nav-label,.side-foot{display:none;}
+  .nav button{white-space:nowrap;width:auto;}
+  .topbar,.content{padding-left:16px;padding-right:16px;}
+  .topbar{position:static;}
+}
+
+/* ---------------------------------------------------------------- controls */
+.controls{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:10px 12px;box-shadow:var(--shadow);}
+.cg{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.ctl-label{font-size:12.5px;color:var(--text-muted);}
+.spacer{flex:1;}
+select, .btn, input[type="text"]{font-family:inherit;font-size:13px;color:var(--text);background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:7px 10px;}
+select{cursor:pointer;}
+input[type="text"]::placeholder{color:var(--text-faint);}
+.btn{cursor:pointer;font-weight:500;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{border-color:var(--text-faint);}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;}
+.btn.primary:hover{filter:brightness(1.07);}
+.btn.primary:disabled{opacity:.65;cursor:progress;}
+.btn.ghost{background:var(--panel-alt);}
+.icon-btn{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-md);border:1px solid var(--border);background:var(--panel);color:var(--text-muted);cursor:pointer;}
+.icon-btn:hover{color:var(--text);border-color:var(--text-faint);}
+.seg{display:inline-flex;background:var(--sunk);border-radius:var(--r-md);padding:3px;gap:2px;}
+.seg button{background:none;border:none;color:var(--text-muted);font-size:12.5px;font-weight:500;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;}
+.seg button:hover:not(.active){color:var(--text);}
+.seg button.active{background:var(--panel);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08), 0 0 0 1px var(--border);}
+@media (max-width:520px){ .seg{flex-wrap:wrap;} }
+.chip{font-size:12px;font-weight:500;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--text-faint);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c);opacity:.35;}
+.chip.on{color:var(--text);border-color:color-mix(in srgb, var(--c) 45%, var(--border));background:color-mix(in srgb, var(--c) 9%, var(--panel));}
+.chip.on::before{opacity:1;}
+#search{width:200px;}
+
+/* ---------------------------------------------------------------- panels */
+.grid{display:grid;grid-template-columns:320px minmax(0,1fr) 340px;gap:16px;align-items:start;}
+@media (max-width:1320px){ .grid{grid-template-columns:300px minmax(0,1fr);} .col-stocks{grid-column:1 / -1;} }
+@media (max-width:820px){ .grid{grid-template-columns:1fr;} }
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;display:flex;flex-direction:column;min-width:0;box-shadow:var(--shadow);}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border-soft);gap:8px;flex-wrap:wrap;}
+.panel-head h2{font-size:14px;font-weight:600;}
+.panel-head .count{font-size:12px;color:var(--text-faint);}
+.empty{padding:22px 16px;font-size:13px;color:var(--text-muted);line-height:1.6;}
+
+/* ---------------------------------------------------------------- pills */
+.pill{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;line-height:1.55;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;
+  color:var(--c);background:color-mix(in srgb, var(--c) 12%, transparent);}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c);}
+.st-Leading{--c:var(--lead);color:var(--lead);} .st-Emerging{--c:var(--emerg);color:var(--emerg);} .st-Weakening{--c:var(--weak);color:var(--weak);} .st-Lagging{--c:var(--lag);color:var(--lag);} .st-na{--c:var(--text-faint);color:var(--text-faint);}
+.cf-Low{--c:var(--neg);} .cf-Medium{--c:var(--gold);} .cf-High{--c:var(--pos);}
+.pill.cf-Low,.pill.cf-Medium,.pill.cf-High{color:var(--text-muted);background:var(--sunk);}
+
+/* ---------------------------------------------------------------- leaderboard */
+#board{max-height:calc(100vh - 250px);min-height:420px;overflow-y:auto;}
+.cat-row{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border-soft);color:inherit;font:inherit;cursor:pointer;padding:10px 14px 10px 10px;position:relative;}
+.cat-row:hover{background:var(--panel-alt);}
+.cat-row.sel{background:var(--accent-dim);}
+.cat-row.sel::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent);}
+.cat-row .rk{font-size:12px;color:var(--text-faint);text-align:right;font-variant-numeric:tabular-nums;}
+.cat-row .nm{font-size:13.5px;font-weight:500;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cat-row .sub{display:flex;gap:8px;align-items:center;margin-top:5px;font-size:11.5px;color:var(--text-faint);flex-wrap:wrap;}
+.cat-row .sc{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+.cat-row .sc b{font-size:16px;font-weight:650;font-variant-numeric:tabular-nums;}
+.spark{display:block;}
+
+/* ---------------------------------------------------------------- category detail */
+.det-head{padding:18px 20px 16px;border-bottom:1px solid var(--border-soft);}
+.det-head h2{font-size:21px;line-height:1.25;}
+.det-tags{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:12.5px;color:var(--text-muted);}
+.det-score{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
+.det-score .kv{background:var(--panel-alt);border:1px solid var(--border-soft);border-radius:var(--r-md);padding:9px 12px;min-width:96px;}
+.kv .k{font-size:12px;color:var(--text-muted);}
+.kv .v{font-size:19px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums;}
+.kv .v small{font-size:12px;color:var(--text-faint);font-weight:500;margin-left:4px;}
+.pillars{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px 18px;padding:16px 20px;border-bottom:1px solid var(--border-soft);}
+.pillar .lbl{font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;gap:6px;}
+.pillar .lbl b{color:var(--text);font-weight:650;font-variant-numeric:tabular-nums;}
+.pillar.st .lbl{color:var(--teal);}
+.bar{height:6px;background:var(--sunk);border-radius:6px;margin-top:7px;overflow:hidden;}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:6px;}
+.chart-toolbar{display:flex;gap:10px;align-items:center;padding:14px 20px 0;flex-wrap:wrap;}
+.chart-toolbar .ttl{font-size:13px;font-weight:600;}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--text-muted);flex-wrap:wrap;}
+.legend .sw{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:3px;}
+.cwrap{padding:8px 14px 10px;}
+canvas{display:block;width:100%;}
+.mgroups{padding:2px 20px 20px;}
+.mgroup h3{font-size:13px;font-weight:600;color:var(--text);margin:18px 0 10px;display:flex;align-items:center;gap:10px;}
+.mgroup h3::after{content:"";flex:1;height:1px;background:var(--border-soft);}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px;}
+.mtile{background:var(--panel-alt);border:1px solid var(--border-soft);border-radius:var(--r-md);padding:10px 12px;cursor:help;}
+.mtile .l{font-size:12px;color:var(--text-muted);line-height:1.35;min-height:32px;}
+.mtile .row{display:flex;align-items:baseline;justify-content:space-between;margin-top:4px;gap:6px;}
+.mtile .v{font-size:16px;font-weight:650;font-variant-numeric:tabular-nums;}
+.mtile .p{font-size:11px;color:var(--text-faint);}
+.mtile .bar{height:4px;margin-top:7px;}
+
+/* ---------------------------------------------------------------- stocks list */
+.stock-tools .seg{flex-wrap:wrap;}
+.stock-tools{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;align-items:center;}
+.stock-list{max-height:calc(100vh - 300px);min-height:380px;overflow-y:auto;}
+.st-row{display:grid;grid-template-columns:minmax(0,1fr) 80px 70px;gap:8px;align-items:center;padding:9px 14px;border:none;border-bottom:1px solid var(--border-soft);cursor:pointer;width:100%;background:none;color:inherit;font:inherit;text-align:left;}
+.st-row:hover{background:var(--panel-alt);}
+.st-row.dim{opacity:.45;}
+.st-row .sym{font-size:13px;font-weight:600;}
+.st-row .flags{display:flex;gap:3px;margin-top:5px;}
+.flag{font-size:10px;font-weight:600;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;border-radius:5px;color:var(--text-faint);background:var(--sunk);}
+.flag.on{color:var(--panel);background:var(--c);}
+.st-row .r{text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;}
+.st-row .r small{display:block;font-size:11px;color:var(--text-faint);margin-top:2px;}
+.st-legend{padding:10px 14px;font-size:11.5px;color:var(--text-faint);border-top:1px solid var(--border-soft);line-height:1.6;}
+
+/* ---------------------------------------------------------------- tables */
+.tbl-wrap{overflow:auto;max-height:calc(100vh - 230px);}
+table.mt{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%;font-variant-numeric:tabular-nums;}
+table.mt th{position:sticky;top:0;z-index:2;background:var(--panel-alt);color:var(--text-muted);font-weight:500;font-size:12px;text-align:right;padding:9px 10px;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;vertical-align:bottom;}
+table.mt th.grp{font-size:11.5px;color:var(--text);font-weight:600;text-align:center;border-bottom:1px solid var(--border-soft);cursor:default;}
+table.mt thead tr:nth-child(2) th{top:31px;}
+table.mt th:hover{color:var(--text);}
+table.mt th.sorted{color:var(--accent);font-weight:600;}
+table.mt td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--border-soft);white-space:nowrap;}
+table.mt td.nm, table.mt th.nm{text-align:left;position:sticky;left:0;z-index:1;background:var(--panel);max-width:270px;overflow:hidden;text-overflow:ellipsis;font-size:13px;}
+table.mt th.nm{z-index:3;background:var(--panel-alt);font-size:12px;}
+table.mt tbody tr{cursor:pointer;}
+table.mt tbody tr:hover td{background:var(--panel-alt);}
+table.mt td.sep, table.mt th.sep{border-left:1px solid var(--border);}
+table.mt td.l, table.mt th.l{text-align:left;}
+table.mt tr.hot td{background:color-mix(in srgb, var(--pos) 7%, transparent);}
+table.mt tr.hot td.nm{box-shadow:inset 3px 0 0 var(--pos);}
+table.mt td.newscell{white-space:normal;max-width:280px;min-width:140px;font-size:12px;color:var(--text-muted);text-align:left;}
+
+/* ---------------------------------------------------------------- rotation map */
+.rot-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start;}
+@media (max-width:1020px){ .rot-grid{grid-template-columns:1fr;} }
+#rrgTip{position:fixed;pointer-events:none;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(0,0,0,.18);padding:9px 11px;font-size:12.5px;z-index:40;display:none;max-width:280px;line-height:1.55;}
+.qexp{padding:14px 16px;font-size:13px;line-height:1.6;color:var(--text-muted);}
+.qexp p{margin:0 0 10px;}
+.qexp b{font-weight:600;}
+
+/* ---------------------------------------------------------------- modal */
+.overlay{position:fixed;inset:0;background:rgba(10,14,22,.5);backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;z-index:50;}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:940px;width:100%;padding:22px 22px 18px;box-shadow:0 24px 64px rgba(0,0,0,.28);}
+.modal-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px;}
+.modal-top h3{font-size:24px;}
+.modal-close{width:34px;height:34px;border-radius:var(--r-md);background:var(--panel-alt);border:1px solid var(--border);color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.mstats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:12px;}
+.mstats .kv{background:var(--panel-alt);border:1px solid var(--border-soft);padding:8px 10px;border-radius:var(--r-md);}
+.mstats .kv .v{font-size:14px;}
+.notice{margin:40px auto;max-width:640px;padding:24px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);font-size:13.5px;line-height:1.8;color:var(--text-muted);}
+.notice b{color:var(--text);}
+.notice code{font-family:var(--mono);font-size:12.5px;background:var(--sunk);padding:1px 6px;border-radius:5px;color:var(--text);}
+footer{padding:16px 24px 24px;font-size:12px;color:var(--text-faint);}
+
+/* ---------------------------------------------------------------- live refresh */
+.live-box{display:flex;align-items:center;gap:10px;}
+.live-info{font-size:12px;color:var(--text-muted);text-align:right;line-height:1.4;}
+.live-info b{color:var(--text);font-weight:600;}
+.live-info .err{color:var(--neg);}
+.live-pill{font-size:11px;font-weight:700;color:#fff;background:var(--neg);border-radius:999px;padding:1px 8px;}
+
+/* ---------------------------------------------------------------- watchlist (sidebar) */
+.strat-bar{display:flex;flex-direction:column;gap:10px;background:var(--panel-alt);border:1px solid var(--border-soft);border-radius:var(--r-lg);padding:12px;}
+.strat-bar .ttl{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.strat-bar .info{font-size:12.5px;color:var(--text-muted);line-height:1.6;}
+.strat-bar .info b{color:var(--text);font-weight:600;}
+.strat-bar .warn{color:var(--weak);}
+.strat-bar .btns{display:flex;gap:6px;flex-wrap:wrap;}
+.strat-bar .btn{font-size:12.5px;padding:6px 10px;}
+@media (max-width:960px){ .strat-bar{flex-direction:row;flex-wrap:wrap;align-items:center;} }
+.schip{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;line-height:1.6;color:var(--gold);background:color-mix(in srgb, var(--gold) 13%, transparent);white-space:nowrap;}
+.schip.news{color:var(--accent);background:var(--accent-dim);}
+.st-row.pick{background:color-mix(in srgb, var(--gold) 7%, transparent);box-shadow:inset 3px 0 0 var(--gold);}
+.st-row.pick:hover{background:color-mix(in srgb, var(--gold) 12%, transparent);}
+.st-row .chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}
+.pick-sep{padding:7px 14px;font-size:12px;font-weight:600;color:var(--gold);background:var(--panel-alt);border-bottom:1px solid var(--border-soft);}
+.pick-sep.other{color:var(--text-faint);font-weight:500;}
+.star{font-size:11.5px;font-weight:700;color:var(--gold);}
+.det-picks{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--text-muted);}
+.det-picks button{font-size:12.5px;background:color-mix(in srgb, var(--gold) 9%, var(--panel));border:1px solid color-mix(in srgb, var(--gold) 35%, var(--border));color:var(--text);padding:4px 10px;border-radius:999px;cursor:pointer;}
+.det-picks button:hover{border-color:var(--gold);}
+.picks-tools{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border-soft);}
+.catlink{background:none;border:none;color:var(--text);font:inherit;cursor:pointer;padding:0;text-align:left;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px;}
+.catlink:hover{color:var(--accent);text-decoration-color:var(--accent);}
+.mnews{margin-top:12px;padding:12px 14px;border-radius:var(--r-md);background:var(--accent-dim);font-size:13px;line-height:1.6;}
+
+/* ---------------------------------------------------------------- stock search */
+.ssearch{position:relative;flex:1;max-width:440px;min-width:220px;}
+.ssearch input{width:100%;font-size:13.5px;padding:9px 40px 9px 36px;border-radius:999px;background:var(--panel);}
+.ssearch .ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-faint);pointer-events:none;display:flex;}
+.ssearch kbd{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;color:var(--text-faint);border:1px solid var(--border);border-radius:5px;padding:0 6px;}
+.ss-results{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:45;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:0 16px 40px rgba(0,0,0,.18);max-height:440px;overflow-y:auto;padding:4px;}
+.ss-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;width:100%;text-align:left;background:none;border:none;border-radius:var(--r-md);color:inherit;font:inherit;padding:9px 10px;cursor:pointer;}
+.ss-item:hover,.ss-item.act{background:var(--panel-alt);}
+.ss-item .a{font-size:13.5px;font-weight:600;}
+.ss-item .b{font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.ss-item .c{text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;}
+.ss-item .c small{display:block;margin-top:4px;}
+.ss-empty{padding:12px;font-size:13px;color:var(--text-muted);}
+@media (max-width:820px){ .ssearch{order:3;max-width:none;flex-basis:100%;} }
+
+/* ---------------------------------------------------------------- category card in stock modal */
+.mcat{margin:14px 0 6px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--panel-alt);padding:14px 16px;position:relative;overflow:hidden;}
+.mcat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c, var(--accent));}
+.mcat .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start;}
+.mcat .lbl{font-size:12px;color:var(--text-muted);}
+.mcat .nm{font-size:18px;font-weight:650;margin-top:2px;}
+.mcat .verdict{margin-top:10px;font-size:13.5px;line-height:1.55;font-weight:500;}
+.mcat .grid4{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:8px;margin-top:12px;}
+.mcat .grid4 .kv{background:var(--panel);border:1px solid var(--border-soft);padding:8px 10px;border-radius:var(--r-md);}
+.mcat .grid4 .kv .v{font-size:14px;}
+.mcat .cmp{margin-top:12px;font-size:12.5px;color:var(--text-muted);line-height:1.8;}
+.mcat .cmp b{color:var(--text);}
+
+/* ---------------------------------------------------------------- watchlist ranking */
+.rank-note{padding:12px 16px;font-size:13px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);line-height:1.6;}
+.rank-note b{color:var(--text);font-weight:600;}
+.rank-top{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;padding:14px 16px;}
+.rcard{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;cursor:pointer;text-align:left;color:inherit;font:inherit;position:relative;overflow:hidden;}
+.rcard::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--c,var(--accent));}
+.rcard:hover{border-color:var(--c,var(--accent));}
+.rcard .t{font-size:12px;font-weight:600;color:var(--c,var(--accent));}
+.rcard .s{font-size:18px;font-weight:700;margin-top:4px;display:flex;justify-content:space-between;align-items:baseline;gap:6px;}
+.rcard .s small{font-size:22px;color:var(--c,var(--accent));font-variant-numeric:tabular-nums;}
+.rcard .d{font-size:12.5px;color:var(--text-muted);margin-top:4px;line-height:1.5;}
+.rgroup{border-top:1px solid var(--border);}
+.rg-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:16px 16px 0;flex-wrap:wrap;}
+.rg-head h3{font-size:17px;display:flex;align-items:center;gap:8px;}
+.rg-head h3::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--gold);}
+.rg-head .count{font-size:12px;color:var(--text-faint);}
+table.mt tr.top1 td{background:color-mix(in srgb, var(--pos) 11%, transparent);}
+table.mt tr.top3 td{background:color-mix(in srgb, var(--pos) 5%, transparent);}
+.scorebar{display:inline-block;width:46px;height:5px;background:var(--sunk);vertical-align:middle;margin-left:8px;border-radius:5px;overflow:hidden;}
+.scorebar i{display:block;height:100%;border-radius:5px;}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="side">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <rect x="1" y="1" width="13" height="13" rx="3.5" fill="var(--emerg)"/>
+        <rect x="16" y="1" width="13" height="13" rx="3.5" fill="var(--lead)"/>
+        <rect x="1" y="16" width="13" height="13" rx="3.5" fill="var(--lag)"/>
+        <rect x="16" y="16" width="13" height="13" rx="3.5" fill="var(--weak)"/>
+      </svg>
+      <div><h1>Category Rotation</h1><span>NSE micro-categories</span></div>
+    </div>
+
+    <nav class="nav" id="viewSeg" aria-label="Views">
+      <div class="nav-label">Views</div>
+      <button data-v="desk" class="active"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="2" width="4" height="12" rx="1.2"/><rect x="7" y="2" width="7.5" height="7" rx="1.2"/><rect x="7" y="10.5" width="7.5" height="3.5" rx="1.2"/></svg>Categories</button>
+      <button data-v="rank"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 14V9M6 14V4M10 14V7M14 14V2"/></svg>Watchlist ranking</button>
+      <button data-v="picks"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>Strategy picks</button>
+      <button data-v="table"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="2" width="13" height="12" rx="1.5"/><path d="M1.5 6h13M1.5 10h13M6 2v12"/></svg>All metrics</button>
+      <button data-v="rot"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.5v13M1.5 8h13"/><circle cx="11.5" cy="4.5" r="1.4" fill="currentColor"/><circle cx="4.5" cy="11" r="1.4" fill="currentColor"/></svg>Rotation map</button>
+    </nav>
+
+    <div class="strat-bar" id="stratBar">
+      <span class="ttl"><span class="star">★</span>Your watchlist</span>
+      <span class="info" id="stratInfo">No list loaded. Upload a CSV or Excel file with columns: Symbol, Score, Strategy (News optional).</span>
+      <span class="btns">
+        <label class="btn primary" for="stratFile" title="CSV or Excel. Columns are found by header name: Symbol, Score, Strategy, News (optional)">Upload file</label>
+        <input type="file" id="stratFile" accept=".csv,.xlsx,.xls,text/csv" hidden>
+        <button class="btn ghost" id="stratClear" hidden title="Remove the loaded list">Clear</button>
+      </span>
+    </div>
+
+    <div class="side-foot" id="foot">Research tool, not investment advice.</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="ssearch" role="search">
+        <span class="ico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg></span>
+        <input type="text" id="stockSearch" placeholder="Search a stock by symbol or name" autocomplete="off" aria-label="Search stocks" aria-controls="ssResults">
+        <kbd>/</kbd>
+        <div class="ss-results" id="ssResults" hidden role="listbox"></div>
+      </div>
+      <div class="top-meta" id="topMeta"></div>
+      <div class="top-actions">
+        <div class="live-box" id="liveBox" hidden>
+          <span id="liveInfo" class="live-info"></span>
+          <button class="btn primary" id="refreshBtn" title="Fetch live prices for all stocks and recalculate (about 20 seconds)">Refresh prices</button>
+        </div>
+        <button class="icon-btn" id="themeBtn" title="Switch light / dark theme" aria-label="Switch light or dark theme"></button>
+      </div>
+    </header>
+
+    <div class="content">
+      <div id="app" hidden>
+        <div class="view-head"><div><h2 id="viewTitle"></h2><p id="viewDesc"></p></div></div>
+
+        <div class="controls" id="controls" style="margin-top:14px">
+          <span class="cg"><span class="ctl-label">Horizon</span>
+          <div class="seg" id="horSeg" role="group" aria-label="Score horizon">
+            <button data-v="swing" class="active" title="Scores built from 20–60 day trend, momentum, breadth and setups">Swing (1–3 months)</button>
+            <button data-v="short" title="Scores built from 1-day, 3-day and 1-week moves">Short-term (1 day–1 week)</button>
+          </div></span>
+          <span class="cg"><span class="ctl-label">Stocks</span>
+          <div class="seg" id="varSeg" role="group" aria-label="Universe">
+            <button data-v="all" class="active">All</button>
+            <button data-v="qual" id="qualBtn">Above 200 EMA only</button>
+          </div></span>
+          <span class="cg"><span class="ctl-label">Category size</span>
+          <div class="seg" id="tierSeg" role="group" aria-label="Category size"></div></span>
+          <span id="stageChips" class="cg"></span>
+          <span class="spacer"></span>
+          <span class="cg"><span class="ctl-label">Rank by</span>
+          <select id="sortSel" aria-label="Rank categories by" style="max-width:250px"></select></span>
+          <input type="text" id="search" placeholder="Filter categories" aria-label="Filter categories">
+        </div>
+
+        <!-- CATEGORIES (desk) -->
+        <div id="viewDesk" class="grid" style="margin-top:16px">
+          <section class="panel" aria-label="Category leaderboard">
+            <div class="panel-head"><h2>Categories</h2><span class="count" id="boardCount"></span></div>
+            <div id="board"></div>
+          </section>
+          <section class="panel" aria-label="Category detail" id="detail"></section>
+          <aside class="panel col-stocks" aria-label="Stocks in category">
+            <div class="panel-head"><h2>Stocks in this category</h2><span class="count" id="stCount"></span></div>
+            <div class="stock-tools">
+              <span class="ctl-label">Sort by</span>
+              <div class="seg" id="stSort" role="group" aria-label="Sort stocks">
+                <button data-s="r1">1D</button>
+                <button data-s="r3">3D</button>
+                <button data-s="r5">1W</button>
+                <button data-s="r20" class="active">20D</button>
+                <button data-s="r60">60D</button>
+                <button data-s="hi52">52W high</button>
+                <button data-s="rsi">RSI</button>
+                <button data-s="mcap">Mcap</button>
+              </div>
+            </div>
+            <div class="stock-list" id="stockList"></div>
+            <div class="st-legend">
+              Q above 200 EMA (qualified) · C tightening in an uptrend · V volume rising · P pullback in an uptrend.
+              Faded rows are outside the current stock filter.
+            </div>
+          </aside>
+        </div>
+
+        <!-- ALL METRICS -->
+        <section id="viewTable" class="panel" hidden aria-label="All metrics table" style="margin-top:16px">
+          <div class="panel-head"><h2>Every category, every metric</h2><span class="count">Click a column to sort, a row to open the category. Shading shows rank among the rows shown.</span></div>
+          <div class="tbl-wrap"><table class="mt" id="mtable"></table></div>
+        </section>
+
+        <!-- STRATEGY PICKS -->
+        <section id="viewPicks" class="panel" hidden aria-label="Strategy picks by category strength" style="margin-top:16px">
+          <div class="panel-head"><h2>Your stocks and how strong their categories are</h2><span class="count" id="picksCount"></span></div>
+          <div class="picks-tools">
+            <span class="ctl-label">Show categories</span>
+            <div class="seg" id="picksScope">
+              <button data-v="all" class="active">All</button>
+              <button data-v="top10">Top 10</button>
+              <button data-v="top25">Top 25</button>
+              <button data-v="le">Leading or emerging</button>
+            </div>
+            <span id="picksStrats" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+            <span class="spacer"></span>
+            <span class="faint" style="font-size:12px">Green rows: the category is in the top 10 right now.</span>
+          </div>
+          <div class="tbl-wrap"><table class="mt" id="picksTable"></table></div>
+        </section>
+
+        <!-- WATCHLIST RANKING -->
+        <div id="viewRank" hidden style="margin-top:16px">
+          <section class="panel" aria-label="Watchlist ranking">
+            <div class="panel-head"><h2>Which stock first?</h2><span class="count" id="rankCount"></span></div>
+            <div class="picks-tools">
+              <span class="ctl-label">Group</span>
+              <div class="seg" id="rankGroup">
+                <button data-v="strategy" class="active">One deck per strategy</button>
+                <button data-v="all">All together</button>
+              </div>
+              <span class="ctl-label">Category strength over</span>
+              <div class="seg" id="rankSec"></div>
+              <span id="rankStrats" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+            </div>
+            <div class="rank-note" id="rankNote"></div>
+            <div id="rankGroups"></div>
+          </section>
+        </div>
+
+        <!-- ROTATION MAP -->
+        <div id="viewRot" class="rot-grid" hidden style="margin-top:16px">
+          <section class="panel" aria-label="Rotation map">
+            <div class="panel-head"><h2>Relative strength vs its momentum (swing, 40 days)</h2><span class="count" id="rotCount"></span></div>
+            <div class="cwrap"><canvas id="rrg" height="560"></canvas></div>
+          </section>
+          <aside class="panel">
+            <div class="panel-head"><h2>How to read it</h2></div>
+            <div class="qexp">
+              <p><b class="st-Leading">Leading</b>: beating the market and still gaining ground.</p>
+              <p><b class="st-Emerging">Emerging</b>: still behind the market, but improving. Early rotation candidates.</p>
+              <p><b class="st-Weakening">Weakening</b>: ahead of the market, but losing momentum. Watch for exits.</p>
+              <p><b class="st-Lagging">Lagging</b>: behind the market and still falling back.</p>
+              <p>Categories usually move clockwise: emerging, leading, weakening, lagging. Dot size is the number of stocks. Hover a dot to see its path over the last <span id="trailN"></span> sessions; click it to open the category.</p>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <div id="noData" class="notice" hidden>
+        <b>No data yet.</b><br>
+        This dashboard reads <code>output/scanner_data.js</code>, which the Python scripts create.<br><br>
+        1. <code>python fyers_auth.py</code> logs in (once a day)<br>
+        2. <code>python symbols.py</code> maps tickers (first time, then weekly)<br>
+        3. <code>python fetch.py --quotes</code> downloads candles and prices<br>
+        4. <code>python compute.py</code> builds the metrics<br><br>
+        Or run <code>run_daily.bat</code>, which does all four, then reload this page.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="modal-top">
+      <div>
+        <h3 id="mTitle"></h3>
+        <div class="det-tags" id="mSub"></div>
+      </div>
+      <button class="modal-close" id="mClose" aria-label="Close">×</button>
+    </div>
+    <div id="mCat"></div>
+    <div class="chart-toolbar" style="padding:10px 0 0">
+      <div class="seg" id="mRange"><button data-r="60" class="active">3 months</button><button data-r="130">6 months</button></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--teal)"></span>EMA 20</span>
+        <span><span class="sw" style="background:var(--gold)"></span>EMA 50</span>
+        <span><span class="sw" style="background:var(--violet)"></span>EMA 200</span>
+      </div>
+    </div>
+    <div class="cwrap" style="padding:8px 0"><canvas id="mChart" height="380"></canvas></div>
+    <div class="mstats" id="mStats"></div>
+    <div id="mNews"></div>
+  </div>
+</div>
+<div id="rrgTip"></div>
+
+<script>window.CRD_STATIC=true;</script>
+<script src="output/scanner_data.js?v=20261015130441"></script>
+<script>
+(function(){
+"use strict";
+let D = window.SCANNER_DATA;
+const STATIC = !!window.CRD_STATIC;      // published copy (GitHub Pages): read-only
+const SERVER = !STATIC && location.protocol.startsWith('http');
+if(!D){
+  if(SERVER){ // server still starting: wait for data, then reload
+    const nd = document.getElementById('noData');
+    nd.hidden = false; nd.innerHTML = '<b>Starting…</b><br>The server is loading candles. This page reloads automatically.';
+    setInterval(()=>fetch('api/data').then(r=>{ if(r.ok) location.reload(); }).catch(()=>{}), 2000);
+  } else document.getElementById('noData').hidden = false;
+  return;
+}
+document.getElementById('app').hidden = false;
+
+/* ============================ state ============================ */
+const METRICS = D.metrics;
+const MBY = Object.fromEntries(METRICS.map(m=>[m.key,m]));
+const STAGES = ["Leading","Emerging","Weakening","Lagging"];
+const STAGE_VAR = {Leading:'--lead',Emerging:'--emerg',Weakening:'--weak',Lagging:'--lag'};
+const state = {
+  view:'desk', variant:'all', tier:'all', stages:new Set(STAGES), search:'',
+  sort:'adj', horizon:'swing', selected:null, rankSec:'st', rankGroup:'strategy', rSort:'rank', rDir:1, pickStrats:null, picksScope:'all', pSort:'crank', pDir:1, stSort:'r20', idxRange:120,
+  tSort:'adj', tDir:-1, mRange:60, mSym:null
+};
+let stocksByCat = {};
+function indexStocks(){
+  stocksByCat = {};
+  D.stocks.forEach(s=>{ (stocksByCat[s.cat] = stocksByCat[s.cat] || []).push(s); });
+}
+indexStocks();
+
+/* ============================ horizon ============================ */
+const HZ = {
+  swing:{score:'score', adj:'adj', hist:'hist', rank:'rank', trank:'tier_rank', stage:'stage', name:'Swing'},
+  short:{score:'sscore', adj:'sadj', hist:'shist', rank:'srank', trank:'stier_rank', stage:'stage_st', name:'Short-term'}
+};
+const H = () => HZ[state.horizon];
+
+/* ============================ helpers ============================ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const sign = v => v>0?'+':'';
+function fmt(v, f){
+  if(v==null || Number.isNaN(v)) return '—';
+  switch(f){
+    case 'pct': return v.toFixed(0)+'%';
+    case 'ret': return sign(v)+v.toFixed(1)+'%';
+    case 'pts': return sign(v)+v.toFixed(0);
+    case 'pctpts': return sign(v)+v.toFixed(1)+' pp';
+    case 'x': return v.toFixed(2)+'×';
+    case 'atr': return sign(v)+v.toFixed(1);
+    default: return v.toFixed(1);
+  }
+}
+function signCls(v, f){
+  if(v==null) return '';
+  if(['ret','pts','pctpts','atr'].includes(f)) return v>0?'pos':(v<0?'neg':'');
+  if(f==='x') return v>1?'pos':(v<1?'neg':'');
+  return '';
+}
+const fmtPx = n => n==null?'—':n.toLocaleString('en-IN',{maximumFractionDigits:2,minimumFractionDigits:2});
+const cats = () => D.variants[state.variant];
+
+function visibleCats(){
+  const q = state.search.trim().toLowerCase();
+  return cats().filter(c=>
+    c.n>0 &&
+    (state.tier==='all' || c.tier===state.tier) &&
+    state.stages.has(c[state.view==='rot' ? 'stage' : H().stage]) &&
+    (!q || c.name.toLowerCase().includes(q))
+  );
+}
+function sortVal(c, key){
+  if(key==='adj') return c[H().adj];
+  if(key==='score') return c[H().score];
+  if(key.startsWith('p:')) return c.pillars[key.slice(2)];
+  if(key==='n') return c.n;
+  return c.m[key];
+}
+function sortedVisible(){
+  const key = state.sort;
+  const hib = key.startsWith('m:') ? MBY[key.slice(2)].hib : true;
+  const k = key.startsWith('m:') ? key.slice(2) : key;
+  const dir = hib===false ? 1 : -1;
+  return visibleCats().slice().sort((a,b)=>{
+    const va = sortVal(a,k), vb = sortVal(b,k);
+    if(va==null) return 1; if(vb==null) return -1;
+    return dir*(va-vb) || (b[H().adj]||0)-(a[H().adj]||0);
+  });
+}
+/* percentile of each metric across all categories in the current variant */
+let PCT = {};
+function computePercentiles(){
+  PCT = {};
+  const list = cats().filter(c=>c.n>0);
+  METRICS.forEach(m=>{
+    const vals = list.map(c=>c.m[m.key]).filter(v=>v!=null).sort((a,b)=>a-b);
+    PCT[m.key] = v => {
+      if(v==null || !vals.length) return null;
+      let lo=0, hi=vals.length;
+      while(lo<hi){ const mid=(lo+hi)>>1; if(vals[mid]<v) lo=mid+1; else hi=mid; }
+      let eq=lo; while(eq<vals.length && vals[eq]===v) eq++;
+      return Math.round(((lo+eq)/2)/vals.length*100);
+    };
+  });
+}
+function spark(vals, w=64, h=18){
+  const v = (vals||[]).filter(x=>x!=null);
+  if(v.length<2) return '';
+  const mn = Math.min(...v, 30), mx = Math.max(...v, 70);
+  const pts = v.map((y,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(h-2-(y-mn)/(mx-mn)*(h-4)).toFixed(1)}`).join(' ');
+  const up = v[v.length-1] >= v[0];
+  const mid = (h-2-(50-mn)/(mx-mn)*(h-4)).toFixed(1);
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+    <line x1="0" x2="${w}" y1="${mid}" y2="${mid}" stroke="var(--border)" stroke-dasharray="2 2"/>
+    <polyline fill="none" stroke="var(${up?'--pos':'--neg'})" stroke-width="1.4" points="${pts}"/></svg>`;
+}
+const pill = (txt, cls) => `<span class="pill ${cls}">${esc(txt)}</span>`;
+const stagePill = s => pill(s, 'st-'+(s==='n/a'?'na':s));
+const tierLabel = k => (D.meta.tiers.find(t=>t.key===k)||{}).label || k;
+
+/* ============================ top meta ============================ */
+function renderMeta(){
+  const u = D.meta.universe_ret;
+  const d = new Date(D.meta.asof+'T00:00:00');
+  const asof = isNaN(d) ? D.meta.asof : d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+  const mv = (lbl, v, f) => `<span class="m">${lbl} <b class="${f==='ret'?(v>=0?'pos':'neg'):''}">${fmt(v,f)}</b></span>`;
+  $('topMeta').innerHTML = `
+    <span class="m"><span class="dot"></span><b>${esc(asof)}</b></span>
+    ${mv('Market today', u.r1, 'ret')}${mv('1 week', u.r5, 'ret')}${mv('20 days', u.r20, 'ret')}${mv('Above 200 EMA', u.above200, 'pct')}
+    ${D.meta.quotes_time ? `<span class="m">${D.meta.live?'<span class="live-pill">Live</span>':''}Prices at <b>${esc(D.meta.quotes_time.slice(11,16) || D.meta.quotes_time)}</b></span>` : ''}`;
+  $('qualBtn').title = `Only stocks above the 200 EMA on ≥${D.meta.qual_x} of the last ${D.meta.qual_n} sessions`;
+  $('foot').innerHTML = `${D.meta.n_stocks} stocks in ${D.meta.n_categories} categories, ${D.meta.sessions} sessions of history. Built ${esc(D.meta.generated)}.<br>Scores use ${D.meta.aggregation==='median'?'median':'capped-mean'} returns; small categories are pulled toward 50.<br>Research tool, not investment advice.`;
+  $('trailN').textContent = (cats()[0]||{rrg:[]}).rrg.length;
+}
+
+/* ============================ controls ============================ */
+function initControls(){
+  const ts = $('tierSeg');
+  ts.innerHTML = `<button data-v="all" class="active">All</button>` +
+    D.meta.tiers.map(t=>`<button data-v="${t.key}">${esc(t.label.replace(' stocks',''))}</button>`).join('');
+  $('stageChips').innerHTML = STAGES.map(s=>
+    `<button class="chip on" data-s="${s}" style="--c:var(${STAGE_VAR[s]})" aria-pressed="true">${s}</button>`).join('');
+
+  const opts = [['adj','Score (current horizon)'],['score','Raw score (no size adj.)'],['n','Stock count']]
+    .concat(Object.entries(D.pillars).map(([k,l])=>['p:'+k,'Pillar · '+l]))
+    .concat(METRICS.map(m=>['m:'+m.key, D.groups[m.group]+' · '+m.label]));
+  $('sortSel').innerHTML = opts.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('');
+
+  segHandler('viewSeg', v=>{ state.view=v; renderView(); });
+  segHandler('picksScope', v=>{ state.picksScope=v; renderPicks(); });
+  segHandler('horSeg', v=>{ state.horizon=v; state.sort='adj'; $('sortSel').value='adj'; state.tSort = v==='short'?'sadj':'adj'; state.tDir=-1;
+    if(v==='short' && state.idxRange>60) state.idxRange=20; if(v==='swing' && state.idxRange<60) state.idxRange=120;
+    if(v==='short' && ['r20','r60'].includes(state.stSort)) setStSort('r1'); if(v==='swing' && ['r1','r3'].includes(state.stSort)) setStSort('r20');
+    renderAll(); });
+  segHandler('varSeg', v=>{ state.variant=v; computePercentiles(); renderAll(); });
+  segHandler('tierSeg', v=>{ state.tier=v; renderAll(); });
+  segHandler('stSort', v=>{ state.stSort=v; renderStocks(); }, 's');
+  segHandler('mRange', v=>{ state.mRange=+v; drawStockChart(); }, 'r');
+  document.querySelectorAll('#stageChips .chip').forEach(b=>b.addEventListener('click',()=>{
+    const s=b.dataset.s;
+    if(state.stages.has(s)) state.stages.delete(s); else state.stages.add(s);
+    b.classList.toggle('on'); b.setAttribute('aria-pressed', b.classList.contains('on'));
+    renderAll();
+  }));
+  $('sortSel').addEventListener('change', e=>{ state.sort=e.target.value; renderAll(); });
+  $('search').addEventListener('input', e=>{ state.search=e.target.value; renderAll(); });
+}
+function setStSort(k){ state.stSort=k; document.querySelectorAll('#stSort button').forEach(b=>b.classList.toggle('active', b.dataset.s===k)); }
+function segHandler(id, fn, attr='v'){
+  document.querySelectorAll('#'+id+' button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#'+id+' button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); fn(b.dataset[attr]);
+  }));
+}
+
+/* ============================ leaderboard ============================ */
+function renderBoard(){
+  const list = sortedVisible();
+  $('boardCount').textContent = list.length + ' shown';
+  const board = $('board');
+  if(!list.length){ board.innerHTML = '<div class="empty">No categories match these filters.</div>'; return; }
+  if(!state.selected || !list.find(c=>c.name===state.selected)) state.selected = list[0].name;
+  const sk = state.sort, showKey = sk!=='adj';
+  board.innerHTML = list.map((c,i)=>{
+    let extra = '';
+    if(showKey){
+      const k = sk.startsWith('m:')?sk.slice(2):sk;
+      const f = sk.startsWith('m:') ? MBY[k].fmt : 'num';
+      extra = `<span class="${signCls(sortVal(c,k),f)}">${fmt(sortVal(c,k), f)}</span>`;
+    }
+    return `<button class="cat-row${c.name===state.selected?' sel':''}" data-c="${esc(c.name)}">
+      <span class="rk">${i+1}</span>
+      <span style="min-width:0">
+        <div class="nm" title="${esc(c.name)}">${esc(c.name)}</div>
+        <div class="sub">${stagePill(c[H().stage])}<span>${c.n} stocks</span>${extra || (state.horizon==='short'
+          ? `<span class="${signCls(c.m.med_ret_1,'ret')}">1D ${fmt(c.m.med_ret_1,'ret')}</span>` : '')}</div>
+      </span>
+      <span class="sc"><b>${(()=>{ const pk=picksInCat(c.name); return pk.length?`<span class="star" title="Strategy stocks: ${esc(pk.map(s=>s.t).join(', '))}">★${pk.length}</span> `:''; })()}${c[H().adj]==null?'—':c[H().adj].toFixed(0)}</b>${spark(c[H().hist])}</span>
+    </button>`;
+  }).join('');
+  board.querySelectorAll('.cat-row').forEach(el=>el.addEventListener('click',()=>{
+    state.selected = el.dataset.c;
+    board.querySelectorAll('.cat-row').forEach(x=>x.classList.toggle('sel', x===el));
+    renderDetail(); renderStocks();
+  }));
+}
+
+/* ============================ detail ============================ */
+function renderDetail(){
+  const c = cats().find(x=>x.name===state.selected);
+  const el = $('detail');
+  if(!c){ el.innerHTML = '<div class="empty">Select a category.</div>'; return; }
+  const allN = (D.variants.all.find(x=>x.name===c.name)||{}).n;
+  const qN = (D.variants.qual.find(x=>x.name===c.name)||{}).n;
+  const pbar = (l, v, cls='') => `<div class="pillar ${cls}"><div class="lbl">${esc(l)} <b>${v==null?'—':v.toFixed(0)}</b></div>
+      <div class="bar"><i style="width:${v||0}%;background:${barColor(v)}"></i></div></div>`;
+  const pillars = pbar('Short-term', c.sscore, 'st') + Object.entries(D.pillars).map(([k,l])=>pbar(l, c.pillars[k])).join('');
+  const groups = {};
+  METRICS.forEach(m=>{ (groups[m.group]=groups[m.group]||[]).push(m); });
+  const mg = Object.keys(D.groups).filter(g=>groups[g]).map(g=>[g,groups[g]]).map(([g,ms])=>`
+    <div class="mgroup"><h3>${esc(D.groups[g])}</h3><div class="mgrid">
+    ${ms.map(m=>{
+      const v = c.m[m.key]; const p = PCT[m.key](v);
+      const good = m.hib===null ? null : (m.hib ? p : (p==null?null:100-p));
+      return `<div class="mtile" title="${esc(m.desc)}">
+        <div class="l">${esc(m.label)}</div>
+        <div class="row"><span class="v ${signCls(v,m.fmt)}">${fmt(v,m.fmt)}</span>
+        <span class="p">${p==null?'':'p'+p}</span></div>
+        <div class="bar"><i style="width:${p||0}%;background:${good==null?'var(--text-faint)':barColor(good)}"></i></div>
+      </div>`;}).join('')}
+    </div></div>`).join('');
+
+  el.innerHTML = `
+    <div class="det-head">
+      <h2>${esc(c.name)}</h2>
+      <div class="det-tags"><span>Swing</span>${stagePill(c.stage)}<span>1–2W</span>${stagePill(c.stage_st)}${pill(c.conf+' confidence','cf-'+c.conf)}
+        <span>${esc(tierLabel(c.tier))}</span><span>·</span>
+        <span>${allN} stocks with data · ${qN||0} qualified</span></div>
+      ${(()=>{ const pk = picksInCat(c.name); if(!pk.length) return '';
+        return `<div class="det-picks"><span class="star">★ Strategy stocks here</span>${pk.map(s=>{ const e=pickOf(s.t);
+          return `<button data-t="${esc(s.t)}" title="${esc(e.strats.map(x=>x.name).join(', '))}">${esc(s.t)} · ${esc(e.strats.map(x=>x.name).join('/'))}${e.score!=null?' · '+Math.round(e.score):''} <span class="${signCls(s.r1,'ret')}">${fmt(s.r1,'ret')}</span></button>`; }).join('')}</div>`; })()}
+      <div class="det-score">
+        <div class="kv"><div class="k">Swing score</div><div class="v">${c.adj==null?'—':c.adj.toFixed(1)}<small>#${c.rank??'—'}</small></div></div>
+        <div class="kv"><div class="k">Short-term score</div><div class="v">${c.sadj==null?'—':c.sadj.toFixed(1)}<small>#${c.srank??'—'}</small></div></div>
+        <div class="kv"><div class="k">${H().name} rank in tier</div><div class="v">#${c[H().trank]??'—'}<small>of ${cats().filter(x=>x.tier===c.tier && x[H().rank]).length}</small></div></div>
+        <div class="kv"><div class="k">Median 1D</div><div class="v ${signCls(c.m.med_ret_1,'ret')}">${fmt(c.m.med_ret_1,'ret')}</div></div>
+        <div class="kv"><div class="k">3D</div><div class="v ${signCls(c.m.med_ret_3,'ret')}">${fmt(c.m.med_ret_3,'ret')}</div></div>
+        <div class="kv"><div class="k">1W</div><div class="v ${signCls(c.m.med_ret_5,'ret')}">${fmt(c.m.med_ret_5,'ret')}</div></div>
+        <div class="kv"><div class="k">20D</div><div class="v ${signCls(c.m.med_ret_20,'ret')}">${fmt(c.m.med_ret_20,'ret')}</div></div>
+      </div>
+    </div>
+    <div class="pillars">${pillars}</div>
+    <div class="chart-toolbar">
+      <span class="ttl">Category index vs market</span>
+      <div class="seg" id="idxSeg">
+        ${[[20,'1M'],[60,'3M'],[120,'6M'],[250,'1Y']].map(([n,l])=>`<button data-r="${n}" class="${state.idxRange===n?'active':''}">${l}</button>`).join('')}
+      </div>
+      <span class="spacer"></span>
+      <div class="legend"><span><span class="sw" style="background:var(--accent)"></span>Category</span>
+      <span><span class="sw" style="background:var(--text-faint)"></span>Market</span></div>
+    </div>
+    <div class="cwrap"><canvas id="idxChart" height="230"></canvas></div>
+    <div class="mgroups">${mg}</div>`;
+  segHandler('idxSeg', v=>{ state.idxRange=+v; drawIndex(); }, 'r');
+  el.querySelectorAll('.det-picks button').forEach(b=>b.addEventListener('click',()=>openStock(b.dataset.t)));
+  drawIndex();
+}
+function barColor(v){
+  if(v==null) return 'var(--text-faint)';
+  return v>=66 ? 'var(--pos)' : v>=40 ? 'var(--accent)' : 'var(--neg)';
+}
+
+function setupCanvas(canvas, H){
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.max(280, canvas.parentElement.clientWidth - 20);
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  const ctx = canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  ctx.font = '11px ' + cssVar('--sans');
+  return {ctx, W, H};
+}
+function drawIndex(){
+  const canvas = $('idxChart'); if(!canvas) return;
+  const ci = D.cat_index, series = ci.by_cat[state.selected];
+  if(!series) return;
+  const n = Math.min(state.idxRange, ci.dates.length);
+  const s0 = series.slice(-n), u0 = ci.universe.slice(-n), dates = ci.dates.slice(-n);
+  const base = s0.find(v=>v!=null) || 100, ub = u0.find(v=>v!=null) || 100;
+  const s = s0.map(v=>v==null?null:v/base*100), u = u0.map(v=>v==null?null:v/ub*100);
+  const {ctx, W, H} = setupCanvas(canvas, 230);
+  const gut = 46, plotW = W-gut, top = 10, bot = H-20;
+  const all = s.concat(u).filter(v=>v!=null);
+  let mn = Math.min(...all), mx = Math.max(...all); const pad = (mx-mn)*0.08||1; mn-=pad; mx+=pad;
+  const x = i => i/(n-1)*plotW, y = v => top + (1-(v-mn)/(mx-mn))*(bot-top);
+  ctx.strokeStyle = cssVar('--border-soft'); ctx.fillStyle = cssVar('--text-faint'); ctx.textBaseline='middle';
+  for(let g=0; g<=4; g++){ const v = mn+(mx-mn)*g/4; ctx.beginPath(); ctx.moveTo(0,y(v)); ctx.lineTo(plotW,y(v)); ctx.stroke(); ctx.fillText(v.toFixed(0), plotW+6, y(v)); }
+  ctx.setLineDash([3,3]); ctx.strokeStyle = cssVar('--border'); ctx.beginPath(); ctx.moveTo(0,y(100)); ctx.lineTo(plotW,y(100)); ctx.stroke(); ctx.setLineDash([]);
+  const line = (arr, col, w) => { ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); let st=false;
+    arr.forEach((v,i)=>{ if(v==null) return; st ? ctx.lineTo(x(i),y(v)) : (ctx.moveTo(x(i),y(v)), st=true); }); ctx.stroke(); ctx.lineWidth=1; };
+  line(u, cssVar('--text-faint'), 1.3);
+  line(s, cssVar('--accent'), 2);
+  ctx.fillStyle = cssVar('--text-faint'); ctx.textBaseline='alphabetic';
+  const step = Math.max(1, Math.floor(n/5));
+  for(let i=0;i<n;i+=step){ ctx.fillText(dates[i].slice(5), Math.min(x(i), plotW-30), H-4); }
+  const last = s[s.length-1], lu = u[u.length-1];
+  ctx.fillStyle = cssVar('--accent'); ctx.font = '600 12px '+cssVar('--sans'); ctx.textBaseline='middle';
+  ctx.fillText(sign(last-100)+(last-100).toFixed(1)+'%', 4, top+6);
+  ctx.fillStyle = cssVar('--text-muted'); ctx.fillText('mkt '+sign(lu-100)+(lu-100).toFixed(1)+'%', 74, top+6);
+}
+
+/* ============================ stocks ============================ */
+function renderStocks(){
+  const list = (stocksByCat[state.selected]||[]).slice();
+  const k = state.stSort;
+  list.sort((a,b)=>{ const pa=pickOf(a.t)?1:0, pb=pickOf(b.t)?1:0; if(pa!==pb) return pb-pa;
+    const va=a[k], vb=b[k]; if(va==null) return 1; if(vb==null) return -1; return vb-va; });
+  const nPick = list.filter(s=>pickOf(s.t)).length;
+  const inUni = s => s.liquid && (state.variant==='all' || s.qual);
+  $('stCount').textContent = `${list.filter(inUni).length} / ${list.length} in universe`;
+  const flag = (on, t, c, title) => `<span class="flag${on?' on':''}" style="--c:var(${c})" title="${title}">${t}</span>`;
+  $('stockList').innerHTML = list.length ? list.map((s,i)=>{
+    const sep = nPick ? (i===0 ? `<div class="pick-sep">★ In your strategy list · ${nPick}</div>` : i===nPick ? '<div class="pick-sep other">Other stocks</div>' : '') : '';
+    const pk = pickOf(s.t);
+    const second = ['r1','r3','r5'].includes(k) ? ['20D', fmt(s.r20,'ret'), signCls(s.r20,'ret')] :
+      k==='r20' ? ['60D', fmt(s.r60,'ret'), signCls(s.r60,'ret')] :
+      k==='r60' ? ['20D', fmt(s.r20,'ret'), signCls(s.r20,'ret')] :
+      k==='hi52' ? ['52WH', fmt(s.hi52,'ret'), ''] : k==='rsi' ? ['RSI', s.rsi==null?'—':s.rsi.toFixed(0), ''] :
+      ['₹Cr', s.mcap==null?'—':Math.round(s.mcap).toLocaleString('en-IN'), ''];
+    const main = ['r1','r3','r5','r60'].includes(k) ? s[k] : s.r20;
+    return `${sep}<button class="st-row${inUni(s)?'':' dim'}${pk?' pick':''}" data-t="${esc(s.t)}">
+      <span style="min-width:0"><div class="sym">${esc(s.t)}</div>
+        ${pk?`<div class="chips">${stratChips(pk)}</div>`:''}
+        <div class="flags">${flag(s.qual,'Q','--pos','Qualified: above 200 EMA filter')}${flag(s.contract,'C','--gold','Contracting in uptrend')}${flag(s.volexp,'V','--accent','Volume expanding')}${flag(s.pull,'P','--violet','Pullback in uptrend')}</div></span>
+      <span class="r">${fmtPx(s.ltp)}<small class="${signCls(s.chg,'ret')}">${fmt(s.chg,'ret')}</small></span>
+      <span class="r"><span class="${signCls(main,'ret')}">${fmt(main,'ret')}</span><small class="${second[2]}">${second[0]} ${second[1]}</small></span>
+    </button>`;}).join('') : '<div class="empty">No stocks.</div>';
+  $('stockList').querySelectorAll('.st-row').forEach(el=>el.addEventListener('click',()=>openStock(el.dataset.t)));
+}
+
+/* ============================ stock modal ============================ */
+const loaded = {};
+function loadCandles(cat){
+  if(window.SC_CANDLES && window.SC_CANDLES[cat]) return Promise.resolve(window.SC_CANDLES[cat]);
+  if(loaded[cat]) return loaded[cat];
+  const file = (D.candle_files||{})[cat];
+  if(!file) return Promise.resolve(null);
+  loaded[cat] = new Promise(res=>{
+    const sc = document.createElement('script'); sc.src = 'output/candles/'+file;
+    sc.onload = ()=>res((window.SC_CANDLES||{})[cat]); sc.onerror = ()=>res(null);
+    document.head.appendChild(sc);
+  });
+  return loaded[cat];
+}
+function openStock(t){
+  const s = D.stocks.find(x=>x.t===t); if(!s) return;
+  state.mSym = s;
+  $('mTitle').textContent = s.t;
+  $('mSub').innerHTML = `<span>${esc(s.name)}</span><span>·</span><span>${esc(s.cat)}</span><span>·</span><span>${esc(s.cap||'')}</span>`;
+  const kv = (k,v,cls='') => `<div class="kv"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`;
+  $('mCat').innerHTML = catCardHTML(s);
+  const oc = $('mOpenCat');
+  if(oc) oc.addEventListener('click', ()=>{ $('overlay').hidden = true; state.selected = s.cat;
+    if(!visibleCats().find(c=>c.name===s.cat)){ state.tier='all'; state.search=''; $('search').value='';
+      state.stages = new Set(STAGES); document.querySelectorAll('#stageChips .chip').forEach(b=>{ b.classList.add('on'); b.setAttribute('aria-pressed','true'); });
+      document.querySelectorAll('#tierSeg button').forEach(b=>b.classList.toggle('active', b.dataset.v==='all')); }
+    switchView('desk'); setTimeout(()=>{ const r = document.querySelector('#board .cat-row.sel'); if(r) r.scrollIntoView({block:'center'}); }, 50); });
+  $('mStats').innerHTML = [
+    kv('LTP', fmtPx(s.ltp)), kv('Day', fmt(s.chg,'ret'), signCls(s.chg,'ret')),
+    kv('3D', fmt(s.r3,'ret'), signCls(s.r3,'ret')), kv('1W', fmt(s.r5,'ret'), signCls(s.r5,'ret')), kv('20D', fmt(s.r20,'ret'), signCls(s.r20,'ret')),
+    kv('60D', fmt(s.r60,'ret'), signCls(s.r60,'ret')), kv('From 52W high', fmt(s.hi52,'ret')),
+    kv('RSI 14', s.rsi==null?'—':s.rsi.toFixed(0)), kv('Days > 200 EMA', s.d200==null?'—':`${s.d200}/${D.meta.qual_n}`),
+    kv('Stretch 50 EMA', s.s50==null?'—':fmt(s.s50,'atr')+' ATR'), kv('Turnover 20D', s.tov==null?'—':'₹'+s.tov.toFixed(0)+' L'),
+    kv('Mcap', s.mcap==null?'—':'₹'+Math.round(s.mcap).toLocaleString('en-IN')+' Cr'),
+    kv('Flags', [s.qual?'Qualified':'', s.contract?'Contracting':'', s.volexp?'Vol expanding':'', s.pull?'Pullback':''].filter(Boolean).join(', ')||'—')
+  ].concat((()=>{ const e = pickOf(s.t); if(!e) return [];
+    return [kv('★ Strategies', e.strats.map(x=>esc(x.name)).join(', ')), kv('Fund. score', e.score==null?'—':Math.round(e.score))]; })()).join('');
+  const pe = pickOf(s.t);
+  $('mNews').innerHTML = pe && pe.news.length ? `<div class="mnews"><b class="star">NEWS</b><br>${pe.news.map(esc).join('<br>')}</div>` : '';
+  $('overlay').hidden = false;
+  const cv = $('mChart'); const {ctx,W,H} = setupCanvas(cv, 380);
+  ctx.fillStyle = cssVar('--text-faint'); ctx.fillText('Loading candles…', 10, 20);
+  loadCandles(s.cat).then(()=>drawStockChart());
+}
+function drawStockChart(){
+  const s = state.mSym; if(!s) return;
+  const pack = (window.SC_CANDLES||{})[s.cat];
+  const cv = $('mChart'); const {ctx, W, H} = setupCanvas(cv, 380);
+  if(!pack || !pack.s[s.t]){ ctx.fillStyle = cssVar('--text-faint'); ctx.fillText('No candle file found for this category (re-run compute.py).', 10, 20); return; }
+  const rows = pack.s[s.t].slice(-state.mRange);
+  const n = rows.length; if(n<2) return;
+  const gut = 56, plotW = W-gut, pTop = 8, pH = H*0.74, vTop = pTop+pH+14, vH = H*0.18;
+  const hi = Math.max(...rows.map(r=>r[2]), ...rows.flatMap(r=>[r[6],r[7],r[8]]).filter(v=>v!=null));
+  const lo = Math.min(...rows.map(r=>r[3]), ...rows.flatMap(r=>[r[6],r[7],r[8]]).filter(v=>v!=null));
+  const pad = (hi-lo)*0.06||1, mx = hi+pad, mn = Math.max(0, lo-pad);
+  const maxV = Math.max(...rows.map(r=>r[5]))||1;
+  const cw = plotW/n, bw = Math.max(1.5, cw*0.62);
+  const x = i => i*cw+cw/2, y = p => pTop+(1-(p-mn)/(mx-mn))*pH, yv = v => vTop+vH-(v/maxV)*vH;
+  ctx.strokeStyle = cssVar('--border-soft'); ctx.fillStyle = cssVar('--text-faint'); ctx.textBaseline='middle';
+  for(let g=0; g<=4; g++){ const p=mn+(mx-mn)*g/4; ctx.beginPath(); ctx.moveTo(0,y(p)); ctx.lineTo(plotW,y(p)); ctx.stroke(); ctx.fillText(fmtPx(p), plotW+5, y(p)); }
+  const pos = cssVar('--pos'), neg = cssVar('--neg');
+  ctx.globalAlpha = .5;
+  rows.forEach((r,i)=>{ ctx.fillStyle = r[4]>=r[1]?pos:neg; ctx.fillRect(x(i)-bw/2, yv(r[5]), bw, vTop+vH-yv(r[5])); });
+  ctx.globalAlpha = 1;
+  rows.forEach((r,i)=>{ const col = r[4]>=r[1]?pos:neg; ctx.strokeStyle=col; ctx.fillStyle=col;
+    ctx.beginPath(); ctx.moveTo(x(i),y(r[2])); ctx.lineTo(x(i),y(r[3])); ctx.stroke();
+    const t = Math.min(y(r[1]),y(r[4])); ctx.fillRect(x(i)-bw/2, t, bw, Math.max(1,Math.abs(y(r[4])-y(r[1])))); });
+  [[6,'--teal'],[7,'--gold'],[8,'--violet']].forEach(([k,c])=>{
+    ctx.strokeStyle = cssVar(c); ctx.lineWidth = 1.5; ctx.beginPath(); let st=false;
+    rows.forEach((r,i)=>{ if(r[k]==null) return; st? ctx.lineTo(x(i),y(r[k])) : (ctx.moveTo(x(i),y(r[k])), st=true); });
+    ctx.stroke(); ctx.lineWidth = 1; });
+  ctx.fillStyle = cssVar('--text-faint'); ctx.textBaseline='alphabetic';
+  const step = Math.max(1, Math.floor(n/6));
+  for(let i=0;i<n;i+=step) ctx.fillText(pack.dates[rows[i][0]].slice(5), Math.min(x(i)-12, plotW-34), H-2);
+  ctx.fillStyle = cssVar('--text-muted'); ctx.font='600 11px '+cssVar('--sans'); ctx.textBaseline='middle';
+  ctx.fillText('Volume', 4, vTop-6);
+}
+$('mClose').addEventListener('click', ()=>$('overlay').hidden=true);
+$('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') $('overlay').hidden=true; });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') $('overlay').hidden=true; });
+
+/* ============================ table ============================ */
+function renderTable(){
+  const list = visibleCats();
+  const cols = [
+    {k:'rank', l:'#', f:'int', g:'score'},
+    {k:'n', l:'n', f:'int', g:'score'},
+    {k:'stage', l:'Swing stage', f:'stage', g:'score'},
+    {k:'adj', l:'Swing', f:'num', g:'score', hib:true, desc:'Swing score (adjusted for size)'},
+    {k:'score', l:'Raw', f:'num', g:'score', hib:true, desc:'Swing score before size adjustment'},
+    {k:'stage_st', l:'1–2W stage', f:'stage', g:'score'},
+    {k:'sadj', l:'Short', f:'num', g:'score', hib:true, desc:'Short-term score (adjusted for size)'},
+    ...Object.entries(D.pillars).map(([k,l])=>({k:'p:'+k, l, f:'num', g:'pillars', hib:true})),
+    ...METRICS.map(m=>({k:'m:'+m.key, l:m.label, f:m.fmt, g:m.group, hib:m.hib, desc:m.desc}))
+  ];
+  const get = (c, k) => (k==='stage'||k==='stage_st') ? STAGES.indexOf(c[k]) : k.startsWith('p:') ? c.pillars[k.slice(2)] : k.startsWith('m:') ? c.m[k.slice(2)] : c[k];
+  const sk = state.tSort, dir = state.tDir;
+  list.sort((a,b)=>{ const va=get(a,sk), vb=get(b,sk); if(va==null) return 1; if(vb==null) return -1; return dir*(va-vb); });
+  // percentile within shown rows, per column
+  const pctFns = {};
+  cols.forEach(c=>{ if(c.hib===undefined) return;
+    const vals = list.map(x=>get(x,c.k)).filter(v=>v!=null).sort((a,b)=>a-b);
+    pctFns[c.k] = v => { if(v==null||vals.length<2) return null; let i=0; while(i<vals.length && vals[i]<v) i++; return i/(vals.length-1); };
+  });
+  const groupOrder = []; cols.forEach(c=>{ if(!groupOrder.length || groupOrder[groupOrder.length-1].g!==c.g) groupOrder.push({g:c.g, n:1}); else groupOrder[groupOrder.length-1].n++; });
+  const gl = g => g==='score'?'Score':g==='pillars'?'Pillars':D.groups[g];
+  let html = '<thead><tr><th class="nm grp"></th>' + groupOrder.map(x=>`<th class="grp sep" colspan="${x.n}">${esc(gl(x.g))}</th>`).join('') + '</tr><tr>';
+  html += `<th class="nm" data-k="name">Category</th>`;
+  let prevG = null;
+  cols.forEach(c=>{ const sep = c.g!==prevG ? ' sep':''; prevG=c.g;
+    html += `<th class="${sep}${sk===c.k?' sorted':''}" data-k="${c.k}" title="${esc(c.desc||c.l)}">${esc(c.l)}${sk===c.k?(dir<0?' ↓':' ↑'):''}</th>`; });
+  html += '</tr></thead><tbody>';
+  const acc = cssVar('--accent'), pos = cssVar('--pos'), neg = cssVar('--neg');
+  list.forEach(c=>{
+    html += `<tr data-c="${esc(c.name)}"><td class="nm" title="${esc(c.name)}">${esc(c.name)}</td>`;
+    prevG = null;
+    cols.forEach(col=>{
+      const sep = col.g!==prevG ? ' sep':''; prevG=col.g;
+      const v = get(c,col.k);
+      let txt, bg='';
+      if(col.f==='stage') txt = stagePill(c[col.k]);
+      else if(col.f==='int') txt = v==null?'—':v;
+      else txt = fmt(v, col.f);
+      const p = pctFns[col.k] ? pctFns[col.k](v) : null;
+      if(p!=null){
+        if(col.hib===null){ bg = `background:color-mix(in srgb, ${acc} ${Math.round(Math.abs(p-0.5)*2*22)}%, transparent)`; }
+        else { const good = col.hib ? p : 1-p; const c2 = good>=0.5?pos:neg; bg = `background:color-mix(in srgb, ${c2} ${Math.round(Math.abs(good-0.5)*2*28)}%, transparent)`; }
+      }
+      html += `<td class="${sep}" style="${bg}">${txt}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  const t = $('mtable'); t.innerHTML = html;
+  t.querySelectorAll('thead th[data-k]').forEach(th=>th.addEventListener('click',()=>{
+    const k = th.dataset.k; if(k==='name') return;
+    if(state.tSort===k) state.tDir*=-1; else { state.tSort=k; const col = cols.find(c=>c.k===k); state.tDir = (col && col.hib===false) || k==='rank' ? 1 : -1; }
+    renderTable();
+  }));
+  t.querySelectorAll('tbody tr').forEach(tr=>tr.addEventListener('click',()=>{
+    state.selected = tr.dataset.c; switchView('desk');
+  }));
+}
+
+/* ============================ rotation map ============================ */
+let rrgHits = [], rrgHover = null;
+function renderRRG(){
+  const list = visibleCats().filter(c=>c.rrg && c.rrg.length);
+  $('rotCount').textContent = list.length + ' categories';
+  const cv = $('rrg'); const {ctx, W, H} = setupCanvas(cv, Math.min(620, Math.max(420, window.innerHeight-230)));
+  const pts = list.flatMap(c=>c.rrg);
+  if(!pts.length) return;
+  const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
+  const spanX = Math.max(Math.abs(Math.min(...xs)-100), Math.abs(Math.max(...xs)-100), 2)*1.08;
+  const spanY = Math.max(Math.abs(Math.min(...ys)-100), Math.abs(Math.max(...ys)-100), 1)*1.08;
+  const pad = 34;
+  const x = v => pad + (v-(100-spanX))/(2*spanX)*(W-2*pad);
+  const y = v => pad + (1-(v-(100-spanY))/(2*spanY))*(H-2*pad);
+  const quad = [[x(100),y(100+spanY),'Leading','--lead','right-top'],[x(100-spanX),y(100+spanY),'Emerging','--emerg','left-top'],
+                [x(100),y(100),'Weakening','--weak','right-bot'],[x(100-spanX),y(100),'Lagging','--lag','left-bot']];
+  quad.forEach(([qx,qy,l,c])=>{
+    ctx.globalAlpha = .07; ctx.fillStyle = cssVar(c);
+    ctx.fillRect(qx, qy, x(100+spanX)-x(100), y(100)-y(100+spanY));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = cssVar(c); ctx.font = '600 13px '+cssVar('--sans');
+    const tx = l==='Leading'||l==='Weakening' ? x(100+spanX)-ctx.measureText(l).width-10 : x(100-spanX)+8;
+    const ty = l==='Leading'||l==='Emerging' ? y(100+spanY)+16 : y(100-spanY)-10;
+    ctx.fillText(l, tx, ty);
+  });
+  ctx.strokeStyle = cssVar('--border'); ctx.beginPath(); ctx.moveTo(x(100),pad); ctx.lineTo(x(100),H-pad); ctx.moveTo(pad,y(100)); ctx.lineTo(W-pad,y(100)); ctx.stroke();
+  ctx.fillStyle = cssVar('--text-faint'); ctx.font = '11px '+cssVar('--sans');
+  ctx.fillText('RS-ratio →', W-pad-70, y(100)-6); ctx.save(); ctx.translate(x(100)+12, pad+60); ctx.rotate(-Math.PI/2); ctx.fillText('RS-momentum →', 0, 0); ctx.restore();
+  const maxN = Math.max(...list.map(c=>c.n));
+  rrgHits = [];
+  const sel = state.selected;
+  list.forEach(c=>{
+    const col = cssVar(STAGE_VAR[c.stage]||'--text-faint');
+    const isSel = c.name===sel;
+    if(isSel || c.name===rrgHover){
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+      c.rrg.forEach((p,i)=> i? ctx.lineTo(x(p[0]),y(p[1])) : ctx.moveTo(x(p[0]),y(p[1])));
+      ctx.stroke(); ctx.lineWidth = 1;
+      c.rrg.slice(0,-1).forEach(p=>{ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x(p[0]),y(p[1]),2,0,Math.PI*2); ctx.fill(); });
+    }
+    const [lx,ly] = c.rrg[c.rrg.length-1];
+    const r = 3 + Math.sqrt(c.n/maxN)*8;
+    ctx.globalAlpha = isSel ? 1 : .8;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x(lx),y(ly),r,0,Math.PI*2); ctx.fill();
+    if(isSel){ ctx.strokeStyle = cssVar('--text'); ctx.lineWidth=2; ctx.stroke(); ctx.lineWidth=1;
+      ctx.fillStyle = cssVar('--text'); ctx.font='600 11px '+cssVar('--body'); ctx.fillText(c.name, x(lx)+r+4, y(ly)-r); }
+    ctx.globalAlpha = 1;
+    rrgHits.push({c, px:x(lx), py:y(ly), r:Math.max(r,6)});
+  });
+}
+(function initRRG(){
+  const cv = $('rrg'), tip = $('rrgTip');
+  const hit = e => { const b = cv.getBoundingClientRect(); const mx=e.clientX-b.left, my=e.clientY-b.top;
+    let best=null, bd=1e9; rrgHits.forEach(h=>{ const d=Math.hypot(h.px-mx,h.py-my); if(d<h.r+3 && d<bd){bd=d;best=h;} }); return best; };
+  cv.addEventListener('mousemove', e=>{ const h = hit(e); cv.style.cursor = h?'pointer':'default';
+    const hv = h ? h.c.name : null; if(hv!==rrgHover){ rrgHover = hv; renderRRG(); }
+    if(!h){ tip.style.display='none'; return; }
+    const c = h.c, last = c.rrg[c.rrg.length-1];
+    tip.innerHTML = `<div style="font-family:var(--body);font-weight:600;margin-bottom:3px">${esc(c.name)}</div>${stagePill(c.stage)} n=${c.n} · adj ${c.adj==null?'—':c.adj.toFixed(0)}<br>RS-ratio ${last[0].toFixed(1)} · RS-mom ${last[1].toFixed(1)}<br>20D ${fmt(c.m.med_ret_20,'ret')} · breadth50 ${fmt(c.m.pct_above_50,'pct')}`;
+    tip.style.display='block'; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+14)+'px'; });
+  cv.addEventListener('mouseleave', ()=>{ tip.style.display='none'; if(rrgHover){ rrgHover=null; renderRRG(); } });
+  cv.addEventListener('click', e=>{ const h = hit(e); if(h){ state.selected = h.c.name; tip.style.display='none'; switchView('desk'); } });
+})();
+
+/* ============================ views ============================ */
+function switchView(v){
+  state.view = v;
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('active', b.dataset.v===v));
+  renderView();
+}
+const VIEW_INFO = {
+  desk:['Categories','Which categories are moving. Pick one on the left to see its trend, metrics and stocks.'],
+  rank:['Watchlist ranking','Your watchlist ranked by 50% fundamental score and 50% short-term category strength.'],
+  picks:['Strategy picks','Every stock in your watchlist next to how strong its category is.'],
+  table:['All metrics','All categories against all metrics. Sort any column to scan.'],
+  rot:['Rotation map','Where each category sits in the rotation cycle against the market.']
+};
+function renderView(){
+  const vi = VIEW_INFO[state.view] || ['',''];
+  $('viewTitle').textContent = vi[0]; $('viewDesc').textContent = vi[1];
+  $('controls').hidden = state.view==='rank';
+  $('viewDesk').hidden = state.view!=='desk';
+  $('viewTable').hidden = state.view!=='table';
+  $('viewRot').hidden = state.view!=='rot';
+  $('viewPicks').hidden = state.view!=='picks';
+  $('viewRank').hidden = state.view!=='rank';
+  renderAll();
+}
+function renderAll(){
+  if(state.view==='desk'){ renderBoard(); renderDetail(); renderStocks(); }
+  else if(state.view==='table') renderTable();
+  else if(state.view==='picks') renderPicks();
+  else if(state.view==='rank') renderRanking();
+  else renderRRG();
+  renderStratBar();
+}
+let rt; window.addEventListener('resize', ()=>{ clearTimeout(rt); rt=setTimeout(()=>{
+  if(state.view==='desk') drawIndex(); else if(state.view==='rot') renderRRG();
+  if(!$('overlay').hidden) drawStockChart(); }, 150); });
+
+/* ============================ category card in stock modal ============================ */
+function catCardHTML(s){
+  const all = D.variants[state.variant];
+  const c = all.find(x=>x.name===s.cat);
+  if(!c) return '';
+  const nRank = all.filter(x=>x.rank).length, nS = all.filter(x=>x.srank).length;
+  const tierN = all.filter(x=>x.tier===c.tier && x.rank).length;
+  const kv = (k,v,cls='') => `<div class="kv"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`;
+  // stock's place inside its category
+  const peers = (stocksByCat[s.cat]||[]).filter(x=>x.r20!=null).sort((a,b)=>b.r20-a.r20);
+  const pos = peers.findIndex(x=>x.t===s.t) + 1;
+  const peers1 = (stocksByCat[s.cat]||[]).filter(x=>x.r1!=null).sort((a,b)=>b.r1-a.r1);
+  const pos1 = peers1.findIndex(x=>x.t===s.t) + 1;
+  const m = c.m;
+  // plain-language verdict
+  const st = c.stage, top = c.rank && c.rank <= Math.max(10, Math.round(nRank*0.1));
+  let verdict, col;
+  if(st==='Leading'){ verdict = top ? 'Strong backdrop: the category is leading the market and ranks near the top.' : 'Category is leading the market (outperforming and still gaining).'; col='--lead'; }
+  else if(st==='Emerging'){ verdict = 'Category is improving: below the market but relative strength is rising — possible early rotation.'; col='--emerg'; }
+  else if(st==='Weakening'){ verdict = 'Category is still ahead of the market but losing momentum — watch for a slowdown.'; col='--weak'; }
+  else if(st==='Lagging'){ verdict = 'Weak backdrop: the category is behind the market and still falling back. A good chart here is fighting the tide.'; col='--lag'; }
+  else { verdict = 'Not enough history to classify this category yet.'; col='--text-faint'; }
+  if(c.stage_st==='Emerging' && (st==='Lagging' || st==='Emerging')) verdict += ' Short-term (1–2W) it has just turned up.';
+  if(c.stage_st==='Lagging' && st==='Leading') verdict += ' Short-term (1–2W) it is pulling back.';
+  const vsCat = (a,b) => (a==null||b==null) ? '' : ` <span class="${signCls(a-b,'ret')}">(${sign(a-b)}${(a-b).toFixed(1)} vs category)</span>`;
+  return `<div class="mcat" style="--c:var(${col})">
+    <div class="top">
+      <div><div class="lbl">Category</div><div class="nm">${esc(c.name)}</div>
+        <div class="det-tags" style="margin-top:6px"><span>Swing</span>${stagePill(c.stage)}<span>1–2W</span>${stagePill(c.stage_st)}${pill(c.conf+' confidence','cf-'+c.conf)}<span>${c.n} stocks</span></div></div>
+      <button class="btn ghost" id="mOpenCat">Open category →</button>
+    </div>
+    <div class="verdict" style="color:var(${col})">${esc(verdict)}</div>
+    <div class="grid4">
+      ${kv('Swing score', `${c.adj==null?'—':c.adj.toFixed(0)} <small class="faint">#${c.rank??'—'}/${nRank}</small>`)}
+      ${kv('Short-term score', `${c.sadj==null?'—':c.sadj.toFixed(0)} <small class="faint">#${c.srank??'—'}/${nS}</small>`)}
+      ${kv('Rank in size tier', `#${c.tier_rank??'—'} <small class="faint">of ${tierN}</small>`)}
+      ${kv('% above 50 EMA', fmt(m.pct_above_50,'pct'))}
+      ${kv('% above 200 EMA', fmt(m.pct_above_200,'pct'))}
+      ${kv('RS vs mkt 20D', fmt(m.rs_20,'ret'), signCls(m.rs_20,'ret'))}
+      ${kv('RS vs mkt 1W', fmt(m.rs_5,'ret'), signCls(m.rs_5,'ret'))}
+      ${kv('% near 52W high', fmt(m.pct_near_hi52,'pct'))}
+    </div>
+    <div class="cmp">
+      Stock vs its category (median stock):<br>
+      1D <b class="${signCls(s.r1,'ret')}">${fmt(s.r1,'ret')}</b> vs ${fmt(m.med_ret_1,'ret')}${vsCat(s.r1,m.med_ret_1)} ·
+      1W <b class="${signCls(s.r5,'ret')}">${fmt(s.r5,'ret')}</b> vs ${fmt(m.med_ret_5,'ret')}${vsCat(s.r5,m.med_ret_5)} ·
+      20D <b class="${signCls(s.r20,'ret')}">${fmt(s.r20,'ret')}</b> vs ${fmt(m.med_ret_20,'ret')}${vsCat(s.r20,m.med_ret_20)}<br>
+      ${pos?`Ranks <b>#${pos} of ${peers.length}</b> in the category on 20D return`:''}${pos1?` · <b>#${pos1}</b> today`:''}
+    </div>
+  </div>`;
+}
+
+/* ============================ stock search ============================ */
+function initStockSearch(){
+  const inp = $('stockSearch'), box = $('ssResults');
+  let items = [], act = -1;
+  const close = () => { box.hidden = true; act = -1; };
+  function search(q){
+    q = q.trim().toUpperCase();
+    if(!q){ close(); return; }
+    const ql = q.toLowerCase();
+    const scored = [];
+    for(const s of D.stocks){
+      const t = s.t, n = (s.name||'').toLowerCase();
+      let sc = 0;
+      if(t===q) sc = 100; else if(t.startsWith(q)) sc = 80; else if(t.includes(q)) sc = 60;
+      else if(n.startsWith(ql)) sc = 50; else if(n.includes(ql)) sc = 40;
+      if(sc) scored.push([sc, s]);
+    }
+    scored.sort((a,b)=>b[0]-a[0] || a[1].t.localeCompare(b[1].t));
+    items = scored.slice(0,12).map(x=>x[1]); act = items.length ? 0 : -1;
+    const catBy = Object.fromEntries(cats().map(c=>[c.name,c]));
+    box.innerHTML = items.length ? items.map((s,i)=>{
+      const c = catBy[s.cat];
+      return `<button class="ss-item${i===act?' act':''}" data-t="${esc(s.t)}" role="option">
+        <span style="min-width:0"><div class="a">${esc(s.t)} ${pickOf(s.t)?'<span class="star">★</span>':''}</div>
+          <div class="b">${esc(s.name||'')} · ${esc(s.cat)}</div></span>
+        <span class="c"><span class="${signCls(s.r1,'ret')}">${fmt(s.r1,'ret')}</span>
+          <small>${c?stagePill(c.stage)+' #'+(c.rank??'—'):''}</small></span></button>`;
+    }).join('') : '<div class="ss-empty">No stock matches “'+esc(q)+'”.</div>';
+    box.hidden = false;
+    box.querySelectorAll('.ss-item').forEach(b=>b.addEventListener('mousedown', e=>{ e.preventDefault(); pick(b.dataset.t); }));
+  }
+  function highlight(){ box.querySelectorAll('.ss-item').forEach((b,i)=>b.classList.toggle('act', i===act));
+    const el = box.querySelectorAll('.ss-item')[act]; if(el) el.scrollIntoView({block:'nearest'}); }
+  function pick(t){ close(); inp.value = ''; inp.blur(); openStock(t); }
+  inp.addEventListener('input', ()=>search(inp.value));
+  inp.addEventListener('focus', ()=>{ if(inp.value.trim()) search(inp.value); });
+  inp.addEventListener('blur', ()=>setTimeout(close, 120));
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='ArrowDown'){ e.preventDefault(); if(items.length){ act=(act+1)%items.length; highlight(); } }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); if(items.length){ act=(act-1+items.length)%items.length; highlight(); } }
+    else if(e.key==='Enter'){ e.preventDefault(); if(items[act]) pick(items[act].t); }
+    else if(e.key==='Escape'){ close(); inp.blur(); }
+  });
+  document.addEventListener('keydown', e=>{
+    if(e.key==='/' && document.activeElement.tagName!=='INPUT' && $('overlay').hidden){ e.preventDefault(); inp.focus(); }
+  });
+}
+
+/* ============================ strategy list ============================ */
+const STRAT = { bySym:{}, names:[], meta:null };
+const STRAT_LS = 'crd_strategy_csv_v1';
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/, '');
+  const rows = []; let row = [], f = '', q = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){ f+='"'; i++; } else q=false; }
+      else f += ch;
+    } else if(ch==='"') q = true;
+    else if(ch===','){ row.push(f); f=''; }
+    else if(ch==='\n' || ch==='\r'){
+      if(ch==='\r' && text[i+1]==='\n') i++;
+      row.push(f); rows.push(row); row=[]; f='';
+    } else f += ch;
+  }
+  if(f!=='' || row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
+function loadStrategy(text, meta){
+  STRAT.bySym = {}; STRAT.names = []; STRAT.meta = null;
+  if(!text || !text.trim()) return;
+  const rows = parseCSV(text);
+  const known = new Set(D.stocks.map(s=>s.t));
+  let used=0, blank=0, noStrat=0; const unknown = new Set(), names = new Map();
+  // Find columns by header name (any order); fall back to Symbol, Score, Strategy, News
+  const col = {sym:0, score:1, strat:2, news:3};
+  const isHead = r => r.some(x=>/^(symbol|ticker|stock|scrip)$/i.test((x||'').trim()));
+  const hdr = rows.slice(0,5).find(isHead);
+  if(hdr){
+    const find = re => hdr.findIndex(x=>re.test((x||'').trim()));
+    const i = {sym:find(/^(symbol|ticker|stock|scrip)$/i), score:find(/score|fund/i), strat:find(/strat/i), news:find(/news/i)};
+    if(i.sym>=0) col.sym = i.sym;
+    col.score = i.score; col.strat = i.strat; col.news = i.news;
+  }
+  const cell = (r, k) => col[k]!=null && col[k]>=0 ? (r[col[k]]||'').trim() : '';
+  rows.forEach(r=>{
+    if(isHead(r)) return;                                       // header rows (even repeated)
+    const sym = cell(r,'sym').toUpperCase();
+    if(!sym){ if(r.some(x=>(x||'').trim())) blank++; return; }
+    const scoreNum = parseFloat(cell(r,'score'));
+    const score = Number.isFinite(scoreNum) ? scoreNum : null;
+    let strat = cell(r,'strat').toUpperCase();
+    if(!strat){ strat = 'NONE'; noStrat++; }
+    const news = hdr ? cell(r,'news') : (r.slice(3).join(',')||'').trim();
+    const e = STRAT.bySym[sym] || (STRAT.bySym[sym] = {strats:[], score:null, news:[]});
+    if(!e.strats.find(x=>x.name===strat)) e.strats.push({name:strat, score});
+    if(score!=null) e.score = e.score==null ? score : Math.max(e.score, score);
+    if(news && !e.news.includes(news)) e.news.push(news);
+    names.set(strat, (names.get(strat)||0)+1);
+    if(!known.has(sym)) unknown.add(sym);
+    used++;
+  });
+  STRAT.names = [...names.entries()].map(([name,n])=>({name,n}));
+  STRAT.meta = Object.assign({rows:used, blank, noStrat, unknown:[...unknown].sort(), uniq:Object.keys(STRAT.bySym).length}, meta||{});
+  if(!state.pickStrats) state.pickStrats = new Set(STRAT.names.map(x=>x.name));
+  else STRAT.names.forEach(x=>state.pickStrats.add(x.name));
+}
+const pickOf = t => STRAT.bySym[t];
+function picksInCat(cat){ return (stocksByCat[cat]||[]).filter(s=>pickOf(s.t)); }
+function stratChips(e, max=4){
+  if(!e) return '';
+  const chips = e.strats.slice(0,max).map(x=>`<span class="schip" title="Strategy ${esc(x.name)}${x.score!=null?' · fundamental score '+x.score:''}">${esc(x.name)}${x.score!=null?' '+Math.round(x.score):''}</span>`).join('');
+  return chips + (e.news.length ? `<span class="schip news" title="${esc(e.news.join(' | '))}">NEWS</span>` : '');
+}
+function renderStratBar(){
+  const m = STRAT.meta;
+  $('stratClear').hidden = !m;
+  if(!m){ $('stratInfo').innerHTML = 'No list loaded. Upload a CSV or Excel file with columns: <b>Symbol, Score, Strategy</b> (News optional).'; return; }
+  const inTop = new Set(cats().filter(c=>c[H().rank] && c[H().rank]<=10).map(c=>c.name));
+  const hot = Object.keys(STRAT.bySym).filter(t=>{ const s=D.stocks.find(x=>x.t===t); return s && inTop.has(s.cat); }).length;
+  const warns = [
+    m.unknown.length ? `<span class="warn" title="${esc(m.unknown.join(', '))}">${m.unknown.length} not in the universe</span>` : '',
+    m.blank ? `<span class="warn">${m.blank} rows without a symbol skipped</span>` : '',
+    m.noStrat ? `<span class="warn">${m.noStrat} without a strategy (shown as NONE)</span>` : ''].filter(Boolean);
+  $('stratInfo').innerHTML = `<b>${m.uniq} stocks</b>: ${STRAT.names.map(x=>`${esc(x.name)} ${x.n}`).join(', ')}<br>
+    <b style="color:var(--pos)">${hot}</b> in this horizon's top-10 categories<br>
+    <span class="faint">${esc(m.name||'')}${m.saved_at?`, saved ${esc(m.saved_at)}`:''}</span>
+    ${warns.length?'<br>'+warns.join('<br>'):''}`;
+}
+function saveStrategy(text, name){
+  const meta = {name, saved_at: new Date().toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})};
+  if(SERVER){
+    return fetch('api/strategy', {method:'POST', headers:{'Content-Type':'text/csv','X-File-Name':encodeURIComponent(name||'')}, body:text})
+      .then(r=>r.json()).then(j=>Object.assign(meta, j.meta||{})).catch(()=>meta);
+  }
+  try{ localStorage.setItem(STRAT_LS, JSON.stringify({text, meta})); }catch(e){}
+  return Promise.resolve(meta);
+}
+let xlsxP = null;
+function loadXLSXLib(){
+  if(window.XLSX) return Promise.resolve();
+  return xlsxP || (xlsxP = new Promise((res, rej)=>{
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = res; sc.onerror = ()=>{ xlsxP = null; rej(); };
+    document.head.appendChild(sc);
+  }));
+}
+function initStrategy(){
+  $('stratFile').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    const done = text => { saveStrategy(text, f.name).then(meta=>{ loadStrategy(text, meta); afterStrategy(); }); e.target.value = ''; };
+    const rd = new FileReader();
+    if(/\.xlsx?$/i.test(f.name)){
+      rd.onload = ()=> loadXLSXLib().then(()=>{
+        const wb = XLSX.read(new Uint8Array(rd.result), {type:'array'});
+        done(XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], {blankrows:false}));
+      }).catch(()=>{ alert('Could not load the Excel reader (needs internet once). Save the sheet as CSV and upload that instead.'); e.target.value=''; });
+      rd.readAsArrayBuffer(f);
+    } else {
+      rd.onload = ()=> done(String(rd.result||''));
+      rd.readAsText(f);
+    }
+  });
+  $('stratClear').addEventListener('click', ()=>{
+    if(!confirm('Remove the loaded strategy list?')) return;
+    saveStrategy('', '').then(()=>{ try{ localStorage.removeItem(STRAT_LS); }catch(e){} loadStrategy(''); afterStrategy(); });
+  });
+  // Load the saved list: server file (server mode) > browser storage > copy embedded by compute.py
+  if(SERVER){
+    fetch('api/strategy',{cache:'no-store'}).then(r=>r.json()).then(j=>{ loadStrategy(j.csv||'', j.meta||{}); afterStrategy(); }).catch(()=>{});
+  } else {
+    let saved = null; try{ saved = JSON.parse(localStorage.getItem(STRAT_LS)||'null'); }catch(e){}
+    if(saved && saved.text) loadStrategy(saved.text, saved.meta);
+    else if(D.strategy_csv) loadStrategy(D.strategy_csv, D.strategy_meta||{name:'strategy_list.csv'});
+    afterStrategy();
+  }
+}
+function afterStrategy(){ renderStratBar(); renderPickChips(); renderAll(); }
+
+/* ============================ strategy picks view ============================ */
+function renderPickChips(){
+  $('picksStrats').innerHTML = STRAT.names.map(x=>`<button class="chip${state.pickStrats && state.pickStrats.has(x.name)?' on':''}" style="--c:var(--gold)" data-s="${esc(x.name)}">${esc(x.name)} ${x.n}</button>`).join('');
+  $('picksStrats').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
+    const n=b.dataset.s; state.pickStrats.has(n)?state.pickStrats.delete(n):state.pickStrats.add(n); renderPickChips(); renderPicks();
+  }));
+}
+function renderPicks(){
+  const t = $('picksTable');
+  if(!STRAT.meta){ t.innerHTML = '<tbody><tr><td class="l" style="padding:20px">Upload a strategy CSV (button above) to see which of your stocks sit in strong categories.</td></tr></tbody>'; $('picksCount').textContent=''; return; }
+  const catBy = Object.fromEntries(cats().map(c=>[c.name,c]));
+  const nRanked = cats().filter(c=>c[H().rank]).length;
+  let rows = Object.entries(STRAT.bySym).map(([sym,e])=>{
+    const s = D.stocks.find(x=>x.t===sym);
+    const c = s ? catBy[s.cat] : null;
+    return {sym, e, s, c,
+      crank: c ? c[H().rank] : null, cscore: c ? c[H().adj] : null,
+      fund: e.score, r1: s?s.r1:null, r5: s?s.r5:null, r20: s?s.r20:null,
+      conf: (c && c[H().adj]!=null && e.score!=null) ? (c[H().adj]+e.score)/2 : null};
+  }).filter(r=>r.e.strats.some(x=>state.pickStrats.has(x.name)));
+  const sc = state.picksScope;
+  rows = rows.filter(r=>{
+    if(sc==='all') return true;
+    if(!r.c) return false;
+    if(sc==='top10') return r.crank && r.crank<=10;
+    if(sc==='top25') return r.crank && r.crank<=25;
+    return ['Leading','Emerging'].includes(r.c[H().stage]);
+  });
+  const k = state.pSort, dir = state.pDir;
+  rows.sort((a,b)=>{ const va=a[k], vb=b[k]; if(va==null&&vb==null) return (b.fund||0)-(a.fund||0); if(va==null) return 1; if(vb==null) return -1;
+    return dir*(va-vb) || (b.fund||0)-(a.fund||0); });
+  $('picksCount').textContent = `${rows.length} stocks · ranked by category ${H().name.toLowerCase()} score`;
+  const cols = [['crank','Cat #'],['sym','Stock'],['strats','Strategies'],['fund','Fund. score'],['cat','Category'],['cscore',H().name+' score'],
+    ['sw','Swing stage'],['st','1–2W stage'],['conf','Confluence'],['r1','1D'],['r5','1W'],['r20','20D'],['flags','Flags'],['news','News']];
+  const sortable = new Set(['crank','fund','cscore','conf','r1','r5','r20']);
+  let h = '<thead><tr>' + cols.map(([ck,l])=>`<th class="${['sym','strats','cat','news','flags'].includes(ck)?'l':''}${ck==='sym'?' nm':''}${k===ck?' sorted':''}" data-k="${ck}"
+    title="${ck==='conf'?'Average of the category score (current horizon) and the stock\'s fundamental score':ck==='fund'?'From your CSV (column 2)':''}">${l}${k===ck?(dir<0?' ↓':' ↑'):''}</th>`).join('') + '</tr></thead><tbody>';
+  const flag = s => !s ? '' : [s.qual?'Q':'',s.contract?'C':'',s.volexp?'V':'',s.pull?'P':''].filter(Boolean).join(' ');
+  rows.forEach(r=>{
+    const hot = r.crank && r.crank<=10;
+    h += `<tr class="${hot?'hot':''}" data-t="${esc(r.sym)}">
+      <td>${r.crank ?? '—'}</td>
+      <td class="nm" style="font-family:var(--mono);font-weight:600">${esc(r.sym)}</td>
+      <td class="l">${r.e.strats.map(x=>`<span class="schip">${esc(x.name)}</span>`).join(' ')}</td>
+      <td>${r.fund==null?'—':Math.round(r.fund)}</td>
+      <td class="l">${r.c?`<button class="catlink" data-c="${esc(r.c.name)}">${esc(r.c.name)}</button>`:'<span class="faint">not in universe</span>'}</td>
+      <td>${r.cscore==null?'—':r.cscore.toFixed(0)}${r.crank?`<span class="faint"> /${nRanked}</span>`:''}</td>
+      <td>${r.c?stagePill(r.c.stage):''}</td><td>${r.c?stagePill(r.c.stage_st):''}</td>
+      <td style="font-weight:600">${r.conf==null?'—':r.conf.toFixed(0)}</td>
+      <td class="${signCls(r.r1,'ret')}">${fmt(r.r1,'ret')}</td>
+      <td class="${signCls(r.r5,'ret')}">${fmt(r.r5,'ret')}</td>
+      <td class="${signCls(r.r20,'ret')}">${fmt(r.r20,'ret')}</td>
+      <td class="l">${flag(r.s)}</td>
+      <td class="newscell">${esc(r.e.news.join(' | '))}</td></tr>`;
+  });
+  t.innerHTML = h + '</tbody>';
+  t.querySelectorAll('thead th').forEach(th=>{ if(!sortable.has(th.dataset.k)) return; th.addEventListener('click',()=>{
+    const kk=th.dataset.k; if(state.pSort===kk) state.pDir*=-1; else { state.pSort=kk; state.pDir = kk==='crank'?1:-1; } renderPicks(); }); });
+  t.querySelectorAll('tbody tr[data-t]').forEach(tr=>tr.addEventListener('click',e=>{
+    const cl = e.target.closest('.catlink');
+    if(cl){ state.selected = cl.dataset.c; switchView('desk'); return; }
+    openStock(tr.dataset.t);
+  }));
+}
+
+/* ============================ watchlist ranking ============================ */
+const RANK_SECTIONS = [
+  {key:'st',  label:'Short-term', desc:'the blended short-term score (1D, 3D and 1W relative strength, breadth, volume surges, 5-day highs, 3-day rank change)'},
+  {key:'d3',  label:'3-day',      desc:'3-day relative strength vs market and % of stocks up over 3 days', keys:r=>[r+'_3','pct_up_3d']},
+  {key:'w1',  label:'1-week',     desc:'1-week relative strength, % above 5 EMA, up-days in the week and % at a 5-day high', keys:r=>[r+'_5','pct_above_5','up_days_5','pct_new_hi5']},
+  {key:'acc', label:'Acceleration', desc:'3-day short-term rank change, 5-day rank change, momentum acceleration and 10-day breadth change', keys:()=>['rank_chg_st_3','rank_chg_5','accel_10','breadth_chg_10']},
+];
+const rsKey = () => (D.meta.aggregation==='median' || !(D.metrics||[]).some(m=>m.key==='cm_rs_3')) ? 'rs' : 'cm_rs';
+function sectionCatScores(sec){
+  // returns {catName: {score, rank}} for the current universe variant
+  const list = cats().filter(c=>c.n>0);
+  const out = {};
+  if(sec.key==='st'){
+    list.forEach(c=>{ out[c.name] = {score:c.sadj}; });
+  } else {
+    const keys = sec.keys(rsKey());
+    const pr = {};
+    keys.forEach(k=>{
+      const vals = list.map(c=>c.m[k]).filter(v=>v!=null).sort((a,b)=>a-b);
+      pr[k] = v => { if(v==null||!vals.length) return null; let lo=0,hi=vals.length;
+        while(lo<hi){ const mid=(lo+hi)>>1; if(vals[mid]<v) lo=mid+1; else hi=mid; }
+        let eq=lo; while(eq<vals.length && vals[eq]===v) eq++; return ((lo+eq)/2)/vals.length*100; };
+    });
+    const K = D.meta.shrink_k || 5;
+    list.forEach(c=>{
+      const ps = keys.map(k=>pr[k](c.m[k])).filter(v=>v!=null);
+      if(!ps.length){ out[c.name] = {score:null}; return; }
+      const raw = ps.reduce((a,b)=>a+b,0)/ps.length, w = c.n/(c.n+K);
+      out[c.name] = {score: w*raw + (1-w)*50};
+    });
+  }
+  Object.entries(out).filter(([,v])=>v.score!=null).sort((a,b)=>b[1].score-a[1].score).forEach(([n,v],i)=>{ v.rank=i+1; });
+  return out;
+}
+function rankRows(sec, syms){
+  const cs = sectionCatScores(sec);
+  const byT = Object.fromEntries(D.stocks.map(s=>[s.t,s]));
+  const rows = syms.map(sym=>{
+      const e = STRAT.bySym[sym];
+      const s = byT[sym], c = s ? cats().find(x=>x.name===s.cat) : null, cc = s ? cs[s.cat] : null;
+      const catScore = cc ? cc.score : null;
+      const final = (e.score!=null && catScore!=null) ? 0.5*e.score + 0.5*catScore : null;
+      return {sym, e, s, c, fund:e.score, catScore, catRank: cc?cc.rank:null, final};
+    });
+  rows.filter(r=>r.final!=null).sort((a,b)=>b.final-a.final).forEach((r,i)=>{ r.rank=i+1; });
+  return rows;
+}
+function rankGroupHTML(title, syms, sec, gi){
+  const nCats = cats().filter(c=>c.n>0).length;
+  const all = {}; RANK_SECTIONS.forEach(x=>{ rankRows(x, syms).forEach(r=>{ (all[r.sym]=all[r.sym]||{})[x.key]=r.rank; }); });
+  const rows = rankRows(sec, syms);
+  rows.forEach(r=>{ const rk = RANK_SECTIONS.map(x=>(all[r.sym]||{})[x.key]).filter(v=>v!=null); r.avgRank = rk.length ? rk.reduce((a,b)=>a+b,0)/rk.length : null; });
+  const k = state.rSort, dir = state.rDir;
+  rows.sort((a,b)=>{ const va=a[k], vb=b[k]; if(va==null&&vb==null) return 0; if(va==null) return 1; if(vb==null) return -1; return dir*(va-vb); });
+  const ranked = rows.filter(r=>r.rank).length;
+  const byRank = rows.filter(r=>r.rank).sort((a,b)=>a.rank-b.rank);
+  const cons = rows.filter(r=>r.avgRank!=null).sort((a,b)=>a.avgRank-b.avgRank)[0];
+  const card = (r, t, col) => !r ? '' : `<button class="rcard" style="--c:var(${col})" data-t="${esc(r.sym)}">
+    <div class="t">${t}</div><div class="s"><span>${esc(r.sym)}</span><small>${r.final.toFixed(0)}</small></div>
+    <div class="d">${esc(r.c?r.c.name:'')} · category #${r.catRank}/${nCats} (${r.catScore.toFixed(0)}) · fundamental ${Math.round(r.fund)}<br>
+    ${r.e.strats.map(x=>esc(x.name)).join(', ')} · 1D ${fmt(r.s?r.s.r1:null,'ret')} · 1W ${fmt(r.s?r.s.r5:null,'ret')}</div></button>`;
+  const cards = card(byRank[0],'#1 · '+sec.label,'--pos') + card(byRank[1],'#2','--pos') + card(byRank[2],'#3','--pos')
+    + (cons && ranked>3 ? card(cons, `Most consistent · avg rank ${cons.avgRank.toFixed(1)}`, '--gold') : '');
+  const bar = (v,col) => v==null ? '' : `<span class="scorebar"><i style="width:${Math.max(0,Math.min(100,v))}%;background:var(${col})"></i></span>`;
+  const cols = [['rank','#'],['sym','Stock'],['strats','Strategy'],['final','Final'],['fund','Fund.'],['catScore','Category'],['catRank','Cat #'],['cat','Category name'],
+    ['stage','Stages (swing · 1–2W)'],['r1','1D'],['r3','3D'],['r5','1W'],['st','ST'],['d3','3D'],['w1','1W'],['acc','ACC'],['avgRank','Avg rank']];
+  const tips = {final:'50% fundamental + 50% category score',catScore:'Category score for the selected section (0–100)',catRank:'Category rank among all categories in the selected section',
+    st:'Rank in this deck using the Short-term category score',d3:'Rank in this deck using the 3-day category score',w1:'Rank in this deck using the 1-week category score',acc:'Rank in this deck using the Acceleration category score',avgRank:'Average of the four section ranks: lower = more consistent'};
+  let h = '<thead><tr>' + cols.map(([ck,l])=>`<th class="${['sym','strats','cat','stage'].includes(ck)?'l':''}${ck==='sym'?' nm':''}${k===ck?' sorted':''}${ck==='st'?' sep':''}" data-k="${ck}" title="${tips[ck]||''}">${l}${k===ck?(dir<0?' ↓':' ↑'):''}</th>`).join('') + '</tr></thead><tbody>';
+  rows.forEach(r=>{
+    const s = r.s, rk = all[r.sym]||{};
+    const rc = v => v==null?'—':(v<=3?`<b style="color:var(--pos)">${v}</b>`:v);
+    h += `<tr class="${r.rank===1?'top1':r.rank<=3?'top3':''}" data-t="${esc(r.sym)}">
+      <td style="font-weight:700">${r.rank??'—'}</td>
+      <td class="nm" style="font-family:var(--mono);font-weight:600">${esc(r.sym)}</td>
+      <td class="l">${r.e.strats.map(x=>`<span class="schip">${esc(x.name)}</span>`).join(' ')}</td>
+      <td style="font-weight:700">${r.final==null?'—':r.final.toFixed(1)}${bar(r.final,'--pos')}</td>
+      <td>${r.fund==null?'—':Math.round(r.fund)}${bar(r.fund,'--gold')}</td>
+      <td>${r.catScore==null?'—':r.catScore.toFixed(0)}${bar(r.catScore,'--accent')}</td>
+      <td>${r.catRank??'—'}<span class="faint">/${nCats}</span></td>
+      <td class="l">${r.c?`<button class="catlink" data-c="${esc(r.c.name)}">${esc(r.c.name)}</button>`:'<span class="faint">no category data</span>'}</td>
+      <td class="l">${r.c?stagePill(r.c.stage)+' '+stagePill(r.c.stage_st):''}</td>
+      <td class="${signCls(s?s.r1:null,'ret')}">${fmt(s?s.r1:null,'ret')}</td>
+      <td class="${signCls(s?s.r3:null,'ret')}">${fmt(s?s.r3:null,'ret')}</td>
+      <td class="${signCls(s?s.r5:null,'ret')}">${fmt(s?s.r5:null,'ret')}</td>
+      <td class="sep">${rc(rk.st)}</td><td>${rc(rk.d3)}</td><td>${rc(rk.w1)}</td><td>${rc(rk.acc)}</td>
+      <td>${r.avgRank==null?'—':r.avgRank.toFixed(1)}</td></tr>`;
+  });
+  h += '</tbody>';
+  return `<section class="rgroup">
+    <div class="rg-head"><h3>${esc(title)}</h3><span class="count">${ranked} ranked${rows.length>ranked?` · ${rows.length-ranked} without a score or category`:''}</span></div>
+    <div class="rank-top">${cards}</div>
+    <div class="tbl-wrap" style="max-height:none"><table class="mt rtable">${h}</table></div></section>`;
+}
+function renderRanking(){
+  const seg = $('rankSec');
+  if(!seg.dataset.init){
+    seg.innerHTML = RANK_SECTIONS.map(x=>`<button data-v="${x.key}" class="${x.key===state.rankSec?'active':''}">${x.label}</button>`).join('');
+    segHandler('rankSec', v=>{ state.rankSec=v; renderRanking(); });
+    segHandler('rankGroup', v=>{ state.rankGroup=v; renderRanking(); });
+    seg.dataset.init = 1;
+  }
+  $('rankStrats').innerHTML = STRAT.names.map(x=>`<button class="chip${state.pickStrats && state.pickStrats.has(x.name)?' on':''}" style="--c:var(--gold)" data-s="${esc(x.name)}">${esc(x.name)} ${x.n}</button>`).join('');
+  $('rankStrats').querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
+    const n=b.dataset.s; state.pickStrats.has(n)?state.pickStrats.delete(n):state.pickStrats.add(n); renderRanking(); }));
+  const box = $('rankGroups');
+  if(!STRAT.meta){
+    $('rankNote').textContent=''; $('rankCount').textContent='';
+    box.innerHTML = '<div class="empty" style="padding:20px">Upload your watchlist (Symbol, Score, Strategy) with the button above to rank it.</div>'; return;
+  }
+  const sec = RANK_SECTIONS.find(x=>x.key===state.rankSec);
+  const nCats = cats().filter(c=>c.n>0).length;
+  const groups = state.rankGroup==='all'
+    ? [['All strategies together', Object.keys(STRAT.bySym).filter(t=>STRAT.bySym[t].strats.some(x=>state.pickStrats.has(x.name)))]]
+    : STRAT.names.filter(x=>state.pickStrats.has(x.name))
+        .map(x=>[`${x.name} watchlist`, Object.keys(STRAT.bySym).filter(t=>STRAT.bySym[t].strats.some(y=>y.name===x.name))]);
+  $('rankCount').textContent = state.rankGroup==='all' ? `${groups[0][1].length} stocks` : `${groups.length} decks`;
+  $('rankNote').innerHTML = `<b>Final score = 50% × fundamental score (your sheet) + 50% × category score.</b> Category score (0–100) for <b>${esc(sec.label)}</b> ranks all ${nCats} categories on ${esc(sec.desc)}, adjusted for category size. `
+    + `Stocks are ranked <b>${state.rankGroup==='all'?'across all strategies together':'within each strategy'}</b>. The <b>ST / 3D / 1W / ACC</b> columns show the stock's rank under each section: near the top in all four = the most robust pick.`;
+  box.innerHTML = groups.length ? groups.map(([t,syms],gi)=>rankGroupHTML(t, syms, sec, gi)).join('') : '<div class="empty" style="padding:20px">No strategy selected.</div>';
+  box.querySelectorAll('table.rtable thead th').forEach(th=>{ if(!['rank','final','fund','catScore','catRank','r1','r3','r5','avgRank'].includes(th.dataset.k)) return;
+    th.addEventListener('click',()=>{ const kk=th.dataset.k; if(state.rSort===kk) state.rDir*=-1; else { state.rSort=kk; state.rDir = ['rank','catRank','avgRank'].includes(kk)?1:-1; } renderRanking(); }); });
+  const open = el => el.addEventListener('click', e=>{ const cl = e.target.closest('.catlink');
+    if(cl){ state.selected = cl.dataset.c; switchView('desk'); return; } openStock(el.dataset.t); });
+  box.querySelectorAll('table.rtable tbody tr[data-t]').forEach(open);
+  box.querySelectorAll('.rcard').forEach(open);
+}
+
+/* ============================ live refresh (server mode) ============================ */
+function setData(nd){
+  D = nd;
+  indexStocks();
+  computePercentiles();
+  renderMeta();
+  renderAll();
+  if(!$('overlay').hidden && state.mSym){
+    const s = D.stocks.find(x=>x.t===state.mSym.t); if(s) openStock(s.t);
+  }
+}
+let pollTimer = null;
+function showStatus(st){
+  const btn = $('refreshBtn'), info = $('liveInfo');
+  if(st.status==='refreshing' || st.status==='starting'){
+    btn.disabled = true;
+    btn.textContent = `↻ ${st.message||'Refreshing…'} ${st.elapsed!=null ? Math.round(st.elapsed)+'s' : ''}`;
+  } else {
+    btn.disabled = false; btn.textContent = '↻ Refresh live prices';
+  }
+  info.innerHTML = st.status==='error'
+    ? `<span class="err">${esc(st.last_error||'Refresh failed')}</span>`
+    : (st.last_updated ? `Updated <b>${esc(st.last_updated)}</b>${st.took?` · took ${st.took}s`:''}` : '')
+      + (st.web ? `<br><span style="color:${/failed/.test(st.web)?'var(--neg)':'var(--text-muted)'}">${esc(st.web)}</span>` : '')
+      + (st.eod ? `<br><span style="color:${/not saved|missing/.test(st.eod)?'var(--accent)':'var(--pos)'}">${esc(st.eod)}</span>` : '');
+}
+function poll(){
+  fetch('api/status',{cache:'no-store'}).then(r=>r.json()).then(st=>{
+    showStatus(st);
+    if(st.status==='refreshing' || st.status==='starting'){ pollTimer = setTimeout(poll, 1000); return; }
+    pollTimer = null;
+    if(st.status==='ready' && st.last_updated!==lastSeen){
+      lastSeen = st.last_updated;
+      fetch('api/data',{cache:'no-store'}).then(r=>r.json()).then(setData);
+    }
+  }).catch(()=>{
+    $('liveInfo').innerHTML = '<span class="err">Server not running — start it with: python server.py</span>';
+    $('refreshBtn').disabled = false; pollTimer = null;
+  });
+}
+let lastSeen = null;
+if(STATIC){
+  // Published copy: pick up new data every 5 minutes without a page reload
+  const stamp = d => (d && d.meta) ? d.meta.generated + '|' + (d.meta.quotes_time||'') : '';
+  let current = stamp(D);
+  const showStamp = () => { $('liveBox').hidden = false; $('refreshBtn').hidden = true;
+    $('liveInfo').innerHTML = `Updated by the owner<br><b>${esc(D.meta.quotes_time ? D.meta.quotes_time.slice(0,16) : D.meta.generated)}</b>`; };
+  showStamp();
+  setInterval(()=>{
+    const prev = window.SCANNER_DATA;
+    const sc = document.createElement('script');
+    sc.src = 'output/scanner_data.js?t=' + Date.now();
+    sc.onload = ()=>{ const nd = window.SCANNER_DATA; sc.remove();
+      if(nd && stamp(nd) !== current){ current = stamp(nd); setData(nd); showStamp(); } else window.SCANNER_DATA = prev; };
+    sc.onerror = ()=> sc.remove();
+    document.head.appendChild(sc);
+  }, 5*60*1000);
+}
+if(SERVER){
+  $('liveBox').hidden = false;
+  $('refreshBtn').addEventListener('click', ()=>{
+    $('refreshBtn').disabled = true;
+    fetch('api/refresh',{method:'POST'}).then(()=>{ if(!pollTimer) poll(); })
+      .catch(()=>{ $('liveInfo').innerHTML = '<span class="err">Server not running — start it with: python server.py</span>'; $('refreshBtn').disabled=false; });
+  });
+  fetch('api/status',{cache:'no-store'}).then(r=>r.json()).then(st=>{
+    // data file already shown is current as of the last refresh unless one is in progress
+    lastSeen = st.status==='ready' ? st.last_updated : null;
+    showStatus(st); if(st.status!=='ready') poll();
+  }).catch(()=>{});
+}
+
+/* ============================ theme toggle ============================ */
+const SUN = '<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9L13 13M3 13l1.1-1.1M11.9 4.1L13 3"/></svg>';
+const MOON = '<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 9.8A6 6 0 1 1 6.2 2.5a4.8 4.8 0 0 0 7.3 7.3z"/></svg>';
+function isDark(){ const t = document.documentElement.dataset.theme; return t ? t==='dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+function paintThemeBtn(){ $('themeBtn').innerHTML = isDark() ? SUN : MOON; $('themeBtn').title = isDark() ? 'Switch to light theme' : 'Switch to dark theme'; }
+$('themeBtn').addEventListener('click', ()=>{
+  const next = isDark() ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try{ localStorage.setItem('crd_theme', next); }catch(e){}
+  paintThemeBtn(); renderAll(); if(!$('overlay').hidden) drawStockChart();
+});
+paintThemeBtn();
+
+computePercentiles();
+renderMeta();
+initControls();
+renderView();
+initStrategy();
+initStockSearch();
+})();
+</script>
+</body>
+</html>
